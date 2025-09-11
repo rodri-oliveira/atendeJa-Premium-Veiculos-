@@ -5,6 +5,8 @@ import structlog
 import redis
 from app.core.config import settings
 from .celery_app import celery
+from app.repositories.db import SessionLocal
+from app.repositories import models
 
 log = structlog.get_logger()
 
@@ -62,7 +64,52 @@ def flush_incoming_message(tenant_id: str, wa_id: str) -> None:
     # Delete first to avoid duplicate flushes
     r.delete(key)
     log.info("inbound_flushed", key=key, text_len=len(text))
-    # TODO: normalize raw event, resolve/create contact/conversation
-    # If conversation is in human_handoff, just persist; else, call state machine
-    # For now, just log.
+    # Normalize: resolve/create Contact & Conversation and register Message
+    with SessionLocal() as db:
+        # Tenant (for now default logical tenant; in future map from token/page)
+        tenant = db.query(models.Tenant).filter(models.Tenant.name == tenant_id).first()
+        if tenant is None:
+            tenant = models.Tenant(name=tenant_id)
+            db.add(tenant)
+            db.flush()
+
+        contact = (
+            db.query(models.Contact)
+            .filter(models.Contact.tenant_id == tenant.id, models.Contact.wa_id == wa_id)
+            .first()
+        )
+        if contact is None:
+            contact = models.Contact(tenant_id=tenant.id, wa_id=wa_id)
+            db.add(contact)
+            db.flush()
+
+        convo = (
+            db.query(models.Conversation)
+            .filter(
+                models.Conversation.tenant_id == tenant.id,
+                models.Conversation.contact_id == contact.id,
+                models.Conversation.status != models.ConversationStatus.closed,
+            )
+            .order_by(models.Conversation.id.desc())
+            .first()
+        )
+        if convo is None:
+            convo = models.Conversation(
+                tenant_id=tenant.id,
+                contact_id=contact.id,
+            )
+            db.add(convo)
+            db.flush()
+
+        msg = models.Message(
+            tenant_id=tenant.id,
+            conversation_id=convo.id,
+            direction=models.MessageDirection.inbound,
+            type="text",
+            payload={"text": text, "raw": json.loads(raw) if raw else {}},
+            status="received",
+        )
+        db.add(msg)
+        db.commit()
+    # If conversation is human_handoff, we stop here; otherwise, state machine would be called next.
     return

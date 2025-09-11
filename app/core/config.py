@@ -16,6 +16,8 @@ class Settings(BaseSettings):
     WA_TOKEN: str = ""
     WA_PHONE_NUMBER_ID: str = ""
     WA_API_BASE: str = "https://graph.facebook.com/v20.0"
+    # Optional: HMAC secret to validate webhook signatures (X-Hub-Signature-256)
+    WA_WEBHOOK_SECRET: str = ""
 
     # Database
     POSTGRES_HOST: str = "postgres"
@@ -23,6 +25,8 @@ class Settings(BaseSettings):
     POSTGRES_DB: str = "atendeja"
     POSTGRES_USER: str = "atendeja"
     POSTGRES_PASSWORD: str = "atendeja"
+    # Optional: full database URL override (e.g., sqlite:///./test.db). When set, it takes precedence.
+    DATABASE_URL_OVERRIDE: str = ""
 
     # Redis / Celery
     REDIS_HOST: str = "redis"
@@ -31,6 +35,8 @@ class Settings(BaseSettings):
 
     @property
     def DATABASE_URL(self) -> str:
+        if self.DATABASE_URL_OVERRIDE:
+            return self.DATABASE_URL_OVERRIDE
         return (
             f"postgresql+psycopg2://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}"
             f"@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
