@@ -7,6 +7,7 @@ celery = Celery(
     backend=settings.REDIS_URL,
     include=[
         "app.workers.tasks_inbound",
+        "app.workers.tasks_outbound",
     ],
 )
 
@@ -27,5 +28,6 @@ def echo(message: str) -> str:
 # Ensure tasks modules are imported for registration when running in some environments
 try:  # pragma: no cover
     import app.workers.tasks_inbound  # noqa: F401
+    import app.workers.tasks_outbound  # noqa: F401
 except Exception:  # noqa: BLE001
     pass
