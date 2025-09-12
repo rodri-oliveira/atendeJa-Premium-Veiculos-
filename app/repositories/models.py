@@ -190,3 +190,19 @@ class OrderStatusEvent(Base):
     from_status: Mapped[str] = mapped_column(String(32))
     to_status: Mapped[str] = mapped_column(String(32))
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    __table_args__ = (
+        Index("idx_order_event_order_to", "order_id", "to_status"),
+        Index("idx_order_event_order_created", "order_id", "created_at"),
+    )
+
+
+class OrderRelation(Base):
+    __tablename__ = "order_relations"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    new_order_id: Mapped[int] = mapped_column(ForeignKey("orders.id"), index=True)
+    source_order_id: Mapped[int] = mapped_column(ForeignKey("orders.id"), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    __table_args__ = (
+        Index("uix_order_relation_new", "new_order_id", unique=True),
+        Index("idx_order_relation_source", "source_order_id"),
+    )

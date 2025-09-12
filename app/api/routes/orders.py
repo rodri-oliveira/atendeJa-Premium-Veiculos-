@@ -150,10 +150,16 @@ def reorder(order_id: int, body: ReorderRequest | None = None):
             )
         db.flush()
         _recalc_totals(db, new_order)
+        # Vincular relação de origem -> novo pedido
+        try:
+            db.add(models.OrderRelation(new_order_id=new_order.id, source_order_id=src.id))
+        except Exception:
+            pass
         db.commit()
 
         return {
             "order_id": new_order.id,
+            "source_order_id": src.id,
             "status": new_order.status.value,
             "total_items": new_order.total_items,
             "delivery_fee": new_order.delivery_fee,
@@ -257,6 +263,81 @@ def list_orders(
 
         return out
 
+
+@router.get("/{order_id}/relation")
+def get_order_relation(order_id: int):
+    with SessionLocal() as db:
+        order = db.get(models.Order, order_id)
+        if not order:
+            raise HTTPException(status_code=404, detail="order_not_found")
+        rel = (
+            db.query(models.OrderRelation)
+            .filter(models.OrderRelation.new_order_id == order.id)
+            .first()
+        )
+        return {
+            "order_id": order.id,
+            "source_order_id": (rel.source_order_id if rel else None),
+        }
+
+
+@router.get("/{order_id}/reorders")
+def list_reorders(order_id: int):
+    """Lista pedidos gerados via reorder a partir de um pedido de origem.
+    Retorna visão resumida similar ao GET /orders.
+    """
+    with SessionLocal() as db:
+        src = db.get(models.Order, order_id)
+        if not src:
+            raise HTTPException(status_code=404, detail="order_not_found")
+
+        rels = (
+            db.query(models.OrderRelation)
+            .filter(models.OrderRelation.source_order_id == src.id)
+            .all()
+        )
+        child_ids = [r.new_order_id for r in rels]
+        if not child_ids:
+            return []
+
+        rows = (
+            db.query(models.Order)
+            .filter(models.Order.id.in__(child_ids))
+            .order_by(models.Order.id.desc())
+            .all()
+        )
+
+        out = []
+        now = datetime.utcnow()
+        for o in rows:
+            elapsed = None
+            if getattr(o, "created_at", None):
+                try:
+                    elapsed = int((now - o.created_at).total_seconds())
+                except Exception:
+                    elapsed = None
+            city = None
+            district = None
+            if o.delivery_address:
+                try:
+                    city = o.delivery_address.get("city")
+                    district = o.delivery_address.get("district")
+                except Exception:
+                    pass
+            out.append(
+                {
+                    "id": o.id,
+                    "status": o.status.value,
+                    "total_amount": o.total_amount,
+                    "total_items": o.total_items,
+                    "delivery_fee": o.delivery_fee,
+                    "created_at": getattr(o, "created_at", None),
+                    "elapsed_since_created_sec": elapsed,
+                    "city": city,
+                    "district": district,
+                }
+            )
+        return out
 
 @router.post("")
 def create_order(body: OrderCreate):
@@ -399,6 +480,30 @@ def get_order(order_id: int):
                 for it in items
             ],
         }
+
+
+@router.get("/{order_id}/events")
+def get_order_events(order_id: int):
+    with SessionLocal() as db:
+        order = db.get(models.Order, order_id)
+        if not order:
+            raise HTTPException(status_code=404, detail="order_not_found")
+        evs = (
+            db.query(models.OrderStatusEvent)
+            .filter(models.OrderStatusEvent.order_id == order.id)
+            .order_by(models.OrderStatusEvent.id.asc())
+            .all()
+        )
+        return [
+            {
+                "id": ev.id,
+                "order_id": order.id,
+                "from_status": ev.from_status,
+                "to_status": ev.to_status,
+                "created_at": ev.created_at,
+            }
+            for ev in evs
+        ]
 
 
 @router.post("/{order_id}/pay")
