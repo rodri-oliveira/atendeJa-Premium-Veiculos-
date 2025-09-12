@@ -302,7 +302,7 @@ def list_reorders(order_id: int):
 
         rows = (
             db.query(models.Order)
-            .filter(models.Order.id.in__(child_ids))
+            .filter(models.Order.id.in_(child_ids))
             .order_by(models.Order.id.desc())
             .all()
         )
