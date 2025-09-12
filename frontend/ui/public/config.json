@@ -1,8 +1,6 @@
 {
-  "$schema": "internal",
-  "branding": {
-    "appTitle": "Painel Operacional"
-  },
+  "$schema": "./config.schema.json",
+  "branding": { "appTitle": "Painel Operacional" },
   "kanban": {
     "columns": [
       { "status": "draft", "title": "Rascunho" },

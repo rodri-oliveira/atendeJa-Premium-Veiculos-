@@ -1,0 +1,36 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "UI Config Schema",
+  "type": "object",
+  "properties": {
+    "branding": {
+      "type": "object",
+      "properties": {
+        "appTitle": { "type": "string" }
+      },
+      "additionalProperties": true
+    },
+    "kanban": {
+      "type": "object",
+      "properties": {
+        "columns": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "status": { "type": "string" },
+              "title": { "type": "string" }
+            },
+            "required": ["status", "title"],
+            "additionalProperties": false
+          },
+          "minItems": 1
+        }
+      },
+      "required": ["columns"],
+      "additionalProperties": false
+    }
+  },
+  "required": ["kanban"],
+  "additionalProperties": true
+}
