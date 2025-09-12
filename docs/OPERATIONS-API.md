@@ -131,6 +131,63 @@ Regras: aceita `pending_payment -> paid`. Se `allow_direct_paid=true`, aceita ta
 ### 7) Consultar pedido
 `GET /orders/{order_id}` (sem body)
 
+### 8) Listar pedidos (para painel/Kanban)
+`GET /orders`
+- Parâmetros (query):
+  - `status`: draft | pending_payment | paid | in_kitchen | out_for_delivery | delivered | canceled
+  - `since` / `until`: ISO-8601, ex.: `2025-09-12T00:00:00-03:00`
+  - `limit` (padrão 50, máx. 200) e `offset` (padrão 0)
+  - `search`: filtra por `Customer.wa_id` (telefone)
+
+Exemplo:
+```
+GET /orders?status=in_kitchen&limit=50
+```
+
+Resposta resumida:
+```json
+[
+  {
+    "id": 2,
+    "status": "paid",
+    "total_amount": 87.8,
+    "total_items": 82.8,
+    "delivery_fee": 5,
+    "created_at": "2025-09-11T18:43:57",
+    "elapsed_since_created_sec": 1234,
+    "city": "São Paulo",
+    "district": "Centro"
+  }
+]
+```
+
+### 9) Repetir pedido (reorder)
+`POST /orders/{order_id}/reorder`
+
+Body opcional:
+```json
+{
+  "include_address": false,
+  "notes": "Repetindo pedido do cliente"
+}
+```
+
+Regras:
+- Copia itens do pedido original (pula itens indisponíveis) e usa o preço atual do menu.
+- Se `include_address=true`, copia o endereço e recalcula a taxa de entrega.
+- Novo pedido nasce em `draft`.
+
+Resposta:
+```json
+{
+  "order_id": 4,
+  "status": "draft",
+  "total_items": 39.9,
+  "delivery_fee": 5,
+  "total_amount": 44.9
+}
+```
+
 ## Automação por SLA
 
 - Controlada pela flag `auto_progress_enabled` em `tenant-settings`.
@@ -143,6 +200,35 @@ Regras: aceita `pending_payment -> paid`. Se `allow_direct_paid=true`, aceita ta
 Pré-requisito: container do `worker` e broker (ex.: Redis) em execução.
 - Verificar: `docker compose ps`
 - Logs: `docker compose logs --no-color worker --tail=200`
+
+## Templates WhatsApp
+
+- Configure nomes e idioma dos templates em `PATCH /admin/tenant-settings`:
+```json
+{
+  "template_lang": "pt_BR",
+  "template_confirm": "pedido_confirmado",
+  "template_paid": "pagamento_confirmado",
+  "template_in_kitchen": "pedido_em_preparo",
+  "template_out_for_delivery": "pedido_em_rota",
+  "template_delivered": "pedido_entregue"
+}
+```
+- Se template não estiver configurado, o sistema envia texto simples como fallback.
+
+## Alertas de Atraso (SLA)
+
+- Configure no tenant:
+```json
+{
+  "alerts_enabled": true,
+  "alerts_channel": "log",
+  "alerts_ops_wa_id": "5511999999999"
+}
+```
+- Disparar verificação manual:
+  - `POST /admin/run-sla-check` (sem body). Veja os logs do worker.
+- Critério: usa o tempo no status atual (com base nos eventos `order_status_events`), compara com SLAs e notifica via log ou WhatsApp interno.
 
 ## Mensageria WhatsApp
 
@@ -177,6 +263,26 @@ Exemplos:
 - Edição do pedido (itens/endereço) só é permitida em `draft`/`pending_payment`.
 - O webhook de pagamento aceita `paid` uma única vez; chamadas repetidas retornam `invalid_transition:paid->paid`.
 - Idempotência nos envios: `idempotency_key = "order-status-{order_id}-{status}"`.
+
+## Exemplos PowerShell (Invoke-RestMethod)
+
+- Confirmar pedido:
+```powershell
+$body = @{ confirm = $true } | ConvertTo-Json
+Invoke-RestMethod -Method PATCH -Uri "http://localhost:8000/orders/3?op=confirm" -ContentType "application/json" -Body $body
+```
+
+- Pagar (webhook):
+```powershell
+$body = @{ order_id = 3; payment_id = "UUID"; status = "paid" } | ConvertTo-Json
+Invoke-RestMethod -Method POST -Uri "http://localhost:8000/webhook/payments" -ContentType "application/json" -Body $body
+```
+
+- Reorder com endereço:
+```powershell
+$body = @{ include_address = $true; notes = "Repetindo com mesmo endereço" } | ConvertTo-Json
+Invoke-RestMethod -Method POST -Uri "http://localhost:8000/orders/3/reorder" -ContentType "application/json" -Body $body
+```
 
 ## Roteiro Rápido (exemplo completo)
 

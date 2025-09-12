@@ -7,6 +7,7 @@ import structlog
 from app.core.config import settings
 from app.workers.tasks_outbound import send_text as task_send_text
 from app.workers.tasks_outbound import send_template as task_send_template
+from app.workers.tasks_orders import check_sla_alerts as task_check_sla_alerts
 
 router = APIRouter()
 log = structlog.get_logger()
@@ -172,6 +173,17 @@ class TenantSettingsUpdate(BaseModel):
     sla_entrega_min: int | None = None
     sla_finalizacao_min: int | None = None
     timezone: str | None = None
+    # WhatsApp templates
+    template_lang: str | None = None  # ex.: "pt_BR"
+    template_confirm: str | None = None
+    template_paid: str | None = None
+    template_in_kitchen: str | None = None
+    template_out_for_delivery: str | None = None
+    template_delivered: str | None = None
+    # SLA alerts (operação)
+    alerts_enabled: bool | None = None
+    alerts_channel: str | None = None  # "whatsapp" | "log"
+    alerts_ops_wa_id: str | None = None  # número WhatsApp do operador/gestor
 
 
 @router.patch("/tenant-settings")
@@ -196,3 +208,11 @@ def update_tenant_settings(body: TenantSettingsUpdate):
         db.add(tenant)
         db.commit()
         return {"tenant": tenant.name, "settings_json": tenant.settings_json}
+
+
+@router.post("/run-sla-check")
+def run_sla_check_now():
+    """Dispara uma verificação de atrasos por SLA (execução assíncrona)."""
+    async_result = task_check_sla_alerts.delay()
+    log.info("sla_check_enqueued", task_id=async_result.id)
+    return {"queued": True, "task_id": async_result.id}

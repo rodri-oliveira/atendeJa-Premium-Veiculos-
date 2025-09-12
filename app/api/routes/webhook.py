@@ -144,6 +144,10 @@ async def payments_webhook(body: PaymentEvent):
         _recalc_totals(db, order)
         order.status = models.OrderStatus.paid
         db.add(order)
+        try:
+            db.add(models.OrderStatusEvent(order_id=order.id, from_status=current.value, to_status=models.OrderStatus.paid.value))
+        except Exception:
+            pass
         db.commit()
         db.refresh(order)
 

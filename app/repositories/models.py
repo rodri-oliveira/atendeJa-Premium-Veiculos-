@@ -181,3 +181,12 @@ class DeliveryZone(Base):
     __table_args__ = (
         Index("idx_zone_tenant_name", "tenant_id", "name"),
     )
+
+
+class OrderStatusEvent(Base):
+    __tablename__ = "order_status_events"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    order_id: Mapped[int] = mapped_column(ForeignKey("orders.id"), index=True)
+    from_status: Mapped[str] = mapped_column(String(32))
+    to_status: Mapped[str] = mapped_column(String(32))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

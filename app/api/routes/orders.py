@@ -9,6 +9,7 @@ from app.core.config import settings
 from app.domain.pizza.rules import is_open_now, delivery_fee_for
 from app.workers.tasks_outbound import send_text as task_send_text
 from app.workers.tasks_orders import set_status_task
+from datetime import datetime
 
 router = APIRouter()
 
@@ -77,6 +78,184 @@ def _ensure_customer(db: Session, tenant: models.Tenant, wa_id: str) -> models.C
         db.add(cust)
         db.flush()
     return cust
+
+
+class ReorderRequest(BaseModel):
+    include_address: bool = False
+    notes: Optional[str] = None
+
+
+@router.post("/{order_id}/reorder")
+def reorder(order_id: int, body: ReorderRequest | None = None):
+    """Cria um novo pedido (draft) copiando os itens de um pedido anterior.
+    Opções:
+      - include_address: copia o endereço de entrega
+      - notes: anotações no novo pedido
+    """
+    body = body or ReorderRequest()
+    with SessionLocal() as db:
+        src = db.get(models.Order, order_id)
+        if not src:
+            raise HTTPException(status_code=404, detail="order_not_found")
+
+        tenant = db.get(models.Tenant, src.tenant_id)
+        if not tenant:
+            raise HTTPException(status_code=404, detail="tenant_not_found")
+
+        # Mesmo cliente
+        customer = db.get(models.Customer, src.customer_id)
+        if not customer:
+            raise HTTPException(status_code=404, detail="customer_not_found")
+
+        # Novo pedido draft
+        new_order = models.Order(
+            tenant_id=tenant.id,
+            customer_id=customer.id,
+            notes=body.notes,
+        )
+        if body.include_address and src.delivery_address:
+            new_order.delivery_address = dict(src.delivery_address)
+            # recalcular taxa de entrega conforme regras atuais
+            try:
+                cep = new_order.delivery_address.get("cep")
+                district = new_order.delivery_address.get("district")
+                fee = delivery_fee_for(db, tenant.id, cep=cep, district=district)
+                new_order.delivery_fee = fee
+            except Exception:
+                pass
+
+        db.add(new_order)
+        db.flush()
+
+        # Copiar itens, respeitando preço atual do menu
+        items = (
+            db.query(models.OrderItem)
+            .filter(models.OrderItem.order_id == src.id)
+            .order_by(models.OrderItem.id)
+            .all()
+        )
+        for it in items:
+            mi = db.get(models.MenuItem, it.menu_item_id)
+            if not mi or mi.tenant_id != tenant.id or not mi.available:
+                # pular itens indisponíveis
+                continue
+            db.add(
+                models.OrderItem(
+                    order_id=new_order.id,
+                    menu_item_id=mi.id,
+                    qty=it.qty,
+                    unit_price=mi.price,  # usa preço atual
+                    options=it.options,
+                )
+            )
+        db.flush()
+        _recalc_totals(db, new_order)
+        db.commit()
+
+        return {
+            "order_id": new_order.id,
+            "status": new_order.status.value,
+            "total_items": new_order.total_items,
+            "delivery_fee": new_order.delivery_fee,
+            "total_amount": new_order.total_amount,
+        }
+
+
+@router.get("")
+def list_orders(
+    status: Optional[
+        Literal[
+            "draft",
+            "pending_payment",
+            "paid",
+            "in_kitchen",
+            "out_for_delivery",
+            "delivered",
+            "canceled",
+        ]
+    ] = None,
+    since: Optional[str] = None,
+    until: Optional[str] = None,
+    limit: int = 50,
+    offset: int = 0,
+    search: Optional[str] = None,
+):
+    """Lista pedidos com filtros básicos para alimentar painel/kanban.
+    - status: filtra por status
+    - since/until: ISO datetime (filtra por created_at)
+    - search: termo para wa_id do cliente (e futuramente nome)
+    - paginação simples por limit/offset (limit máximo 200)
+    """
+    with SessionLocal() as db:
+        q = db.query(models.Order)
+
+        if status:
+            q = q.filter(models.Order.status == models.OrderStatus(status))
+
+        # intervalos de data
+        def _parse_dt(s: Optional[str]) -> Optional[datetime]:
+            if not s:
+                return None
+            try:
+                return datetime.fromisoformat(s)
+            except Exception:
+                return None
+
+        dt_since = _parse_dt(since)
+        dt_until = _parse_dt(until)
+        if dt_since:
+            q = q.filter(models.Order.created_at >= dt_since)
+        if dt_until:
+            q = q.filter(models.Order.created_at <= dt_until)
+
+        # search por wa_id
+        if search:
+            # join leve com Customer
+            q = q.join(models.Customer, models.Customer.id == models.Order.customer_id)
+            q = q.filter(models.Customer.wa_id.contains(search))
+
+        # ordenação recente primeiro
+        q = q.order_by(models.Order.id.desc())
+
+        # paginação
+        limit = max(1, min(200, int(limit or 50)))
+        offset = max(0, int(offset or 0))
+        rows = q.offset(offset).limit(limit).all()
+
+        out = []
+        now = datetime.utcnow()
+        for o in rows:
+            elapsed = None
+            try:
+                if getattr(o, "created_at", None):
+                    elapsed = int((now - o.created_at).total_seconds())
+            except Exception:
+                elapsed = None
+
+            city = None
+            district = None
+            if o.delivery_address:
+                try:
+                    city = o.delivery_address.get("city")
+                    district = o.delivery_address.get("district")
+                except Exception:
+                    pass
+
+            out.append(
+                {
+                    "id": o.id,
+                    "status": o.status.value,
+                    "total_amount": o.total_amount,
+                    "total_items": o.total_items,
+                    "delivery_fee": o.delivery_fee,
+                    "created_at": getattr(o, "created_at", None),
+                    "elapsed_since_created_sec": elapsed,
+                    "city": city,
+                    "district": district,
+                }
+            )
+
+        return out
 
 
 @router.post("")
@@ -294,8 +473,14 @@ def set_order_status(order_id: int, body: OrderSetStatus):
             db.flush()
             _recalc_totals(db, order)
 
+        # grava evento de status e aplica mudança
+        from_status = order.status
         order.status = target
         db.add(order)
+        try:
+            db.add(models.OrderStatusEvent(order_id=order.id, from_status=from_status.value, to_status=target.value))
+        except Exception:
+            pass
         db.commit()
         db.refresh(order)
 
