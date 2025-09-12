@@ -1,0 +1,17 @@
+{
+  "$schema": "internal",
+  "branding": {
+    "appTitle": "Painel Operacional"
+  },
+  "kanban": {
+    "columns": [
+      { "status": "draft", "title": "Rascunho" },
+      { "status": "pending_payment", "title": "Aguardando pagamento" },
+      { "status": "paid", "title": "Pago" },
+      { "status": "in_kitchen", "title": "Em preparo" },
+      { "status": "out_for_delivery", "title": "Saiu para entrega" },
+      { "status": "delivered", "title": "Entregue" },
+      { "status": "canceled", "title": "Cancelado" }
+    ]
+  }
+}
