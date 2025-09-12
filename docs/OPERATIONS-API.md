@@ -181,11 +181,46 @@ Resposta:
 ```json
 {
   "order_id": 4,
+  "source_order_id": 3,
   "status": "draft",
   "total_items": 39.9,
   "delivery_fee": 5,
   "total_amount": 44.9
 }
+```
+
+Nota: o `reorder` SEMPRE cria um novo `order_id` e mantém vínculo com o pedido de origem via `source_order_id`.
+
+### 10) Auditoria de vínculo (relation)
+`GET /orders/{order_id}/relation`
+
+Retorna o vínculo do pedido com seu pedido de origem (se houver):
+```json
+{ "order_id": 6, "source_order_id": 3 }
+```
+Se o pedido não tiver origem (pedido original):
+```json
+{ "order_id": 3, "source_order_id": null }
+```
+
+### 11) Listar reorders de um pedido
+`GET /orders/{order_id}/reorders`
+
+Retorna pedidos criados a partir do `{order_id}` (visão resumida):
+```json
+[
+  {
+    "id": 6,
+    "status": "draft",
+    "total_amount": 44.9,
+    "total_items": 39.9,
+    "delivery_fee": 5,
+    "created_at": "2025-09-12T12:28:18.452779",
+    "elapsed_since_created_sec": 532,
+    "city": "São Paulo",
+    "district": "Centro"
+  }
+]
 ```
 
 ## Automação por SLA
