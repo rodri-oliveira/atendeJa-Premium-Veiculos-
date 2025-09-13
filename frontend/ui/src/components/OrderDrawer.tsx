@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 import { getOrder, getOrderEvents, getOrderRelation, getOrderReorders, confirmOrder, setOrderAddress, type OrderDetails, type OrderEvent, type Order, type Address } from '../lib/api'
 
 interface Props {
@@ -15,6 +15,15 @@ export default function OrderDrawer({ orderId, onClose }: Props) {
   const [busy, setBusy] = useState<boolean>(false)
   const [addr, setAddr] = useState<Address | null>(null)
   const [addrErrors, setAddrErrors] = useState<Record<string, string>>({})
+
+  const errMsg = (e: unknown) => (e instanceof Error ? e.message : String(e))
+
+  const isRecord = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object'
+  const pickString = useCallback((obj: unknown, key: string): string => {
+    if (!isRecord(obj)) return ''
+    const val = (obj as Record<string, unknown>)[key]
+    return typeof val === 'string' ? val : ''
+  }, [])
 
   const validateAddr = (a: Address | null) => {
     const errs: Record<string, string> = {}
@@ -40,37 +49,41 @@ export default function OrderDrawer({ orderId, onClose }: Props) {
     const load = async () => {
       try {
         setError(null)
-        const [d, ev, rel, rorders] = await Promise.all([
-          getOrder(orderId),
+        // Carrega detalhes primeiro; demais recursos são auxiliares e não devem bloquear o Drawer
+        const d = await getOrder(orderId)
+        if (!alive) return
+        setDetails(d)
+        try {
+          const a = d?.delivery_address ?? {}
+          const street = pickString(a, 'street')
+          const number = pickString(a, 'number')
+          const district = pickString(a, 'district')
+          const city = pickString(a, 'city')
+          const state = pickString(a, 'state')
+          const cep = pickString(a, 'cep')
+          const payload: Address = street || number || city
+            ? { street, number, district, city, state, cep }
+            : { street: '', number: '', district: '', city: '', state: '', cep: '' }
+          setAddr(payload)
+          setAddrErrors(validateAddr(payload))
+        } catch {
+          const payload: Address = { street: '', number: '', district: '', city: '', state: '', cep: '' }
+          setAddr(payload)
+          setAddrErrors(validateAddr(payload))
+        }
+        // Busca eventos/relação/reorders em paralelo, com tolerância a falhas
+        const [evRes, relRes, rordersRes] = await Promise.allSettled([
           getOrderEvents(orderId),
           getOrderRelation(orderId),
           getOrderReorders(orderId),
         ])
         if (!alive) return
-        setDetails(d)
-        try {
-          const a = (d?.delivery_address || {}) as any
-          if (a && (a.street || a.number || a.city)) {
-            setAddr({
-              street: a.street || '',
-              number: a.number || '',
-              district: a.district || '',
-              city: a.city || '',
-              state: a.state || '',
-              cep: a.cep || '',
-            })
-          } else {
-            setAddr({ street: '', number: '', district: '', city: '', state: '', cep: '' })
-          }
-        } catch {
-          setAddr({ street: '', number: '', district: '', city: '', state: '', cep: '' })
-        }
-        setEvents(ev)
-        setRelation(rel)
-        setReorders(rorders)
-      } catch (e: any) {
+        setEvents(evRes.status === 'fulfilled' ? evRes.value : [])
+        setRelation(relRes.status === 'fulfilled' ? relRes.value : { source_order_id: null })
+        setReorders(rordersRes.status === 'fulfilled' ? rordersRes.value : [])
+      } catch (e: unknown) {
         if (!alive) return
-        setError(e?.message || 'Falha ao carregar detalhes')
+        setError(errMsg(e) || 'Falha ao carregar detalhes')
       }
     }
     load()
@@ -82,7 +95,7 @@ export default function OrderDrawer({ orderId, onClose }: Props) {
       alive = false
       window.removeEventListener('keydown', onKey)
     }
-  }, [orderId, onClose])
+  }, [orderId, onClose, pickString])
 
   return (
     <div className="fixed inset-0 z-50" role="dialog" aria-modal="true">
@@ -113,8 +126,8 @@ export default function OrderDrawer({ orderId, onClose }: Props) {
                         // reload details após confirmar
                         const d = await getOrder(orderId)
                         setDetails(d)
-                      } catch (e: any) {
-                        setError(e?.message || 'Falha ao confirmar pedido')
+                      } catch (e: unknown) {
+                        setError(errMsg(e) || 'Falha ao confirmar pedido')
                       } finally {
                         setBusy(false)
                       }
@@ -124,17 +137,18 @@ export default function OrderDrawer({ orderId, onClose }: Props) {
                   </button>
                 </div>
                 <p className="text-xs text-gray-600 mt-2">
-                  Para confirmar, é necessário endereço válido no pedido. Caso veja o erro "address_required", preencha o endereço antes.
+                  Para confirmar, é necessário endereço válido no pedido. Caso veja o erro &quot;address_required&quot;, preencha o endereço antes.
                 </p>
               </section>
             )}
             {details.status === 'draft' && (
-              <section>
+              <section data-testid="addr-section">
                 <h3 className="font-semibold mb-2">Endereço (obrigatório para confirmar)</h3>
                 <div className="grid grid-cols-2 gap-2 text-sm">
-                  <label className="col-span-2">
+                  <label className="col-span-2" htmlFor="addr-street">
                     Rua
                     <input
+                      id="addr-street"
                       className={`mt-1 w-full border rounded px-2 py-1 ${addrErrors.street ? 'border-red-500' : ''}`}
                       value={addr?.street || ''}
                       onChange={(e)=>{
@@ -145,9 +159,10 @@ export default function OrderDrawer({ orderId, onClose }: Props) {
                     />
                     {addrErrors.street && <span className="text-xs text-red-600">{addrErrors.street}</span>}
                   </label>
-                  <label>
+                  <label htmlFor="addr-number">
                     Número
                     <input
+                      id="addr-number"
                       className={`mt-1 w-full border rounded px-2 py-1 ${addrErrors.number ? 'border-red-500' : ''}`}
                       value={addr?.number || ''}
                       onChange={(e)=>{
@@ -158,16 +173,18 @@ export default function OrderDrawer({ orderId, onClose }: Props) {
                     />
                     {addrErrors.number && <span className="text-xs text-red-600">{addrErrors.number}</span>}
                   </label>
-                  <label>
+                  <label htmlFor="addr-district">
                     Bairro
-                    <input className="mt-1 w-full border rounded px-2 py-1" value={addr?.district || ''} onChange={(e)=>{
+                    <input id="addr-district" className="mt-1 w-full border rounded px-2 py-1" value={addr?.district || ''} onChange={(e)=>{
                       const next = { ...(addr||{street:'',number:'',district:'',city:'',state:'',cep:''}), district: e.target.value }
                       setAddr(next as Address)
+                      setAddrErrors(validateAddr(next as Address))
                     }} />
                   </label>
-                  <label>
+                  <label htmlFor="addr-city">
                     Cidade
                     <input
+                      id="addr-city"
                       className={`mt-1 w-full border rounded px-2 py-1 ${addrErrors.city ? 'border-red-500' : ''}`}
                       value={addr?.city || ''}
                       onChange={(e)=>{
@@ -178,9 +195,10 @@ export default function OrderDrawer({ orderId, onClose }: Props) {
                     />
                     {addrErrors.city && <span className="text-xs text-red-600">{addrErrors.city}</span>}
                   </label>
-                  <label>
+                  <label htmlFor="addr-state">
                     Estado
                     <input
+                      id="addr-state"
                       className={`mt-1 w-full border rounded px-2 py-1 ${addrErrors.state ? 'border-red-500' : ''}`}
                       value={addr?.state || ''}
                       onChange={(e)=>{
@@ -191,9 +209,10 @@ export default function OrderDrawer({ orderId, onClose }: Props) {
                     />
                     {addrErrors.state && <span className="text-xs text-red-600">{addrErrors.state}</span>}
                   </label>
-                  <label>
+                  <label htmlFor="addr-cep">
                     CEP
                     <input
+                      id="addr-cep"
                       className={`mt-1 w-full border rounded px-2 py-1 ${addrErrors.cep ? 'border-red-500' : ''}`}
                       value={addr?.cep || ''}
                       onChange={(e)=>{
@@ -209,7 +228,8 @@ export default function OrderDrawer({ orderId, onClose }: Props) {
                 <div className="mt-2">
                   <button
                     className="text-sm px-3 py-1 rounded bg-gray-800 text-white hover:bg-gray-900 disabled:opacity-50"
-                    disabled={busy || Object.keys(validateAddr(addr)).length > 0}
+                    disabled={busy || Object.keys(addrErrors).length > 0}
+                    aria-label="Salvar endereço"
                     onClick={async ()=>{
                       try {
                         if (!addr) return
@@ -218,8 +238,8 @@ export default function OrderDrawer({ orderId, onClose }: Props) {
                         await setOrderAddress(orderId, addr)
                         const d = await getOrder(orderId)
                         setDetails(d)
-                      } catch (e:any) {
-                        setError(e?.message || 'Falha ao salvar endereço')
+                      } catch (e: unknown) {
+                        setError(errMsg(e) || 'Falha ao salvar endereço')
                       } finally {
                         setBusy(false)
                       }
