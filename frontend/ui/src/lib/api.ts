@@ -15,6 +15,32 @@ export interface ListOrdersQuery {
   until?: string
 }
 
+// Define/atualiza o endereço do pedido (requerido para confirmar)
+export async function setOrderAddress(orderId: string, address: Address): Promise<OrderDetails> {
+  const url = `${API_BASE()}/orders/${encodeURIComponent(orderId)}?op=set_address`
+  const res = await fetch(url, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ address }),
+  })
+  if (!res.ok) {
+    try {
+      const body = await res.json()
+      const detail = (body && (body.detail || body.message)) ? ` - ${body.detail || body.message}` : ''
+      throw new Error(`setOrderAddress failed: ${res.status}${detail}`)
+    } catch {
+      try {
+        const text = await res.text()
+        const suffix = text ? ` - ${text}` : ''
+        throw new Error(`setOrderAddress failed: ${res.status}${suffix}`)
+      } catch {
+        throw new Error(`setOrderAddress failed: ${res.status}`)
+      }
+    }
+  }
+  return res.json()
+}
+
 export interface Order {
   id: string
   status: OrderStatus
@@ -39,6 +65,15 @@ export interface OrderDetails {
   total_amount?: number
   delivery_address?: Record<string, any> | null
   items: OrderItem[]
+}
+
+export interface Address {
+  street: string
+  number: string
+  district: string
+  city: string
+  state: string
+  cep: string
 }
 
 export interface OrderEvent {
@@ -74,7 +109,47 @@ export async function setOrderStatus(orderId: string, next: OrderStatus): Promis
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ status: next }),
   })
-  if (!res.ok) throw new Error(`setOrderStatus failed: ${res.status}`)
+  if (!res.ok) {
+    try {
+      const body = await res.json()
+      const detail = (body && (body.detail || body.message)) ? ` - ${body.detail || body.message}` : ''
+      throw new Error(`setOrderStatus failed: ${res.status}${detail}`)
+    } catch {
+      try {
+        const text = await res.text()
+        const suffix = text ? ` - ${text}` : ''
+        throw new Error(`setOrderStatus failed: ${res.status}${suffix}`)
+      } catch {
+        throw new Error(`setOrderStatus failed: ${res.status}`)
+      }
+    }
+  }
+  return res.json()
+}
+
+// Confirma um pedido em rascunho, movendo para pending_payment conforme regra do backend
+export async function confirmOrder(orderId: string): Promise<OrderDetails> {
+  const url = `${API_BASE()}/orders/${encodeURIComponent(orderId)}?op=confirm`
+  const res = await fetch(url, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ confirm: true }),
+  })
+  if (!res.ok) {
+    try {
+      const body = await res.json()
+      const detail = (body && (body.detail || body.message)) ? ` - ${body.detail || body.message}` : ''
+      throw new Error(`confirmOrder failed: ${res.status}${detail}`)
+    } catch {
+      try {
+        const text = await res.text()
+        const suffix = text ? ` - ${text}` : ''
+        throw new Error(`confirmOrder failed: ${res.status}${suffix}`)
+      } catch {
+        throw new Error(`confirmOrder failed: ${res.status}`)
+      }
+    }
+  }
   return res.json()
 }
 

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { listOrders, type Order, type OrderStatus, setOrderStatus } from '../lib/api'
+import { listOrders, type Order, type OrderStatus, setOrderStatus, confirmOrder } from '../lib/api'
 import FiltersBar from '../components/FiltersBar'
 import OrderCard from '../components/OrderCard'
 import { useUIConfig } from '../config/provider'
@@ -34,15 +34,17 @@ export default function KanbanPage() {
   }
 
   useEffect(() => {
-    fetchData()
+    if (!selected) {
+      fetchData()
+    }
     const id = setInterval(() => {
-      if (Date.now() >= pauseUntilMs) {
+      if (!selected && Date.now() >= pauseUntilMs) {
         fetchData()
       }
-    }, 10_000) // auto-refresh a cada 10s
+    }, 100_000) // auto-refresh a cada 100 segundos
     return () => clearInterval(id)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status, search, limit, pauseUntilMs])
+  }, [status, search, limit, pauseUntilMs, selected])
 
   const groups = useMemo(() => {
     const map = new Map<OrderStatus, Order[]>()
@@ -82,24 +84,41 @@ export default function KanbanPage() {
 
   const handleChangeStatus = async (orderId: string, next: OrderStatus) => {
     try {
-      await setOrderStatus(orderId, next)
+      if (next === 'pending_payment') {
+        // Fluxo exige validação de endereço/loja: abrir Drawer para confirmar
+        setSelected(orderId)
+        // Pausa o auto-refresh enquanto o Drawer estiver aberto
+        setPauseUntilMs(Date.now() + 60_000)
+        return
+      } else {
+        await setOrderStatus(orderId, next)
+      }
       fetchData()
-    } catch (e) {
+    } catch (e: any) {
       console.error(e)
-      setError('Falha ao alterar status')
+      setError(e?.message || 'Falha ao alterar status')
     }
   }
 
+  const handleDrawerClose = () => {
+    setSelected(null)
+    // Dá um fôlego de 2s e refaz o fetch ao fechar o Drawer
+    setPauseUntilMs(Date.now() + 2_000)
+    fetchData()
+  }
+
   return (
-    <div className="p-4">
+    <div className="p-4 min-h-screen overflow-x-auto">
       <h1 className="text-2xl font-bold mb-3">{ui.branding?.appTitle || 'Painel Operacional'}</h1>
       <FiltersBar status={status} search={search} limit={limit} onChange={onChangeFilters} />
       {error && <div className="mt-3 text-sm text-red-700">{error}</div>}
       {loading && <div className="mt-3 text-sm text-gray-600">Carregando...</div>}
-      <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-4 gap-4 mt-4">
+      <div className="flex flex-row gap-4 mt-4">
         {COLUMNS.map((col) => (
-          <div key={col.key} className="bg-gray-50 border rounded p-2" data-testid={`col-${col.key}`}>
-            <div className="font-semibold text-sm mb-2" data-testid={`col-header-${col.key}`}>{col.title}</div>
+          <div key={col.key} className="bg-gray-50 border rounded p-2 flex-none w-[320px]" data-testid={`col-${col.key}`}>
+            <div className="font-semibold text-sm mb-2" data-testid={`col-header-${col.key}`}>
+              {col.title} ({(groups.get(col.key) || []).length})
+            </div>
             <div className="flex flex-col gap-2">
               {(groups.get(col.key) || []).map((o) => (
                 <OrderCard key={o.id} order={o} onChangeStatus={handleChangeStatus} onOpen={(id) => setSelected(id)} />
@@ -108,7 +127,7 @@ export default function KanbanPage() {
           </div>
         ))}
       </div>
-      {selected && <OrderDrawer orderId={selected} onClose={() => setSelected(null)} />}
+      {selected && <OrderDrawer orderId={selected} onClose={handleDrawerClose} />}
     </div>
   )
 }

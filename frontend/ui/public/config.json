@@ -7,9 +7,31 @@
       { "status": "pending_payment", "title": "Aguardando pagamento" },
       { "status": "paid", "title": "Pago" },
       { "status": "in_kitchen", "title": "Em preparo" },
-      { "status": "out_for_delivery", "title": "Saiu para entrega" },
-      { "status": "delivered", "title": "Entregue" },
+      { "status": "out_for_delivery", "title": "Em rota" },
+      { "status": "delivered", "title": "Finalizado" },
       { "status": "canceled", "title": "Cancelado" }
-    ]
+    ],
+    "actions": {
+      "draft": [
+        { "label": "Aguardando pagamento", "next": "pending_payment" },
+        { "label": "Cancelar", "next": "canceled" }
+      ],
+      "pending_payment": [
+        { "label": "Confirmar pagamento", "next": "paid" },
+        { "label": "Cancelar", "next": "canceled" }
+      ],
+      "paid": [
+        { "label": "Marcar em preparo", "next": "in_kitchen" },
+        { "label": "Cancelar", "next": "canceled" }
+      ],
+      "in_kitchen": [
+        { "label": "Saiu p/ entrega", "next": "out_for_delivery" },
+        { "label": "Cancelar", "next": "canceled" }
+      ],
+      "out_for_delivery": [
+        { "label": "Finalizar", "next": "delivered" },
+        { "label": "Cancelar", "next": "canceled" }
+      ]
+    }
   }
 }

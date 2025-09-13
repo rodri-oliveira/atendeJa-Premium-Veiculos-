@@ -78,7 +78,7 @@ services:
 
   web:
     build:
-      context: ../frontend
+      context: ./frontend
       dockerfile: Dockerfile.web
     container_name: atendeja-web
     depends_on:
@@ -87,7 +87,8 @@ services:
     ports:
       - "8082:80"
     volumes:
-      - ../frontend/ui/public/env.js:/usr/share/nginx/html/env.js:ro
+      - ./frontend/ui/public/env.js:/usr/share/nginx/html/env.js:ro
+      - ./frontend/ui/public/config.json:/usr/share/nginx/html/config.json:ro
 
 volumes:
   pgdata:

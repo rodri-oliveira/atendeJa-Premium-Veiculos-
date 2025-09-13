@@ -3,8 +3,16 @@ name: Frontend CI
 on:
   push:
     branches: [ main, feature/** ]
+    paths:
+      - 'frontend/ui/**'
+      - 'frontend/nginx/**'
+      - 'frontend/Dockerfile.web'
   pull_request:
     branches: [ main ]
+    paths:
+      - 'frontend/ui/**'
+      - 'frontend/nginx/**'
+      - 'frontend/Dockerfile.web'
 
 jobs:
   ui:
@@ -38,3 +46,9 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      - name: Upload build artifact (dist)
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-dist
+          path: frontend/ui/dist

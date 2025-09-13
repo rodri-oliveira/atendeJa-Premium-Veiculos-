@@ -18,7 +18,14 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
         const res = await fetch('/config.json')
         if (alive && res.ok) {
           const data = (await res.json()) as UIConfig
-          setCfg({ ...defaultConfig, ...data, kanban: { columns: data?.kanban?.columns ?? defaultConfig.kanban.columns } })
+          setCfg({
+            ...defaultConfig,
+            ...data,
+            kanban: {
+              columns: data?.kanban?.columns ?? defaultConfig.kanban.columns,
+              actions: data?.kanban?.actions ?? defaultConfig.kanban.actions,
+            },
+          })
         }
       } catch {
         // fallback para defaultConfig

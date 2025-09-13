@@ -8,7 +8,7 @@
 
 ## Arquitetura
 - Diretórios principais:
-  - `frontend/` (na raiz do monorepo, irmã de `atendeja-chatbot/`)
+  - `atendeja-chatbot/frontend/` (dentro deste repositório)
     - `ui/` — código do Vite/React/TS/Tailwind
       - `public/env.js` — injeta `window.ENV.API_BASE_URL` sem rebuild
       - `src/` — componentes, páginas e integração com API
@@ -76,7 +76,7 @@ CMD ["nginx", "-g", "daemon off;"]
 ```yaml
 web:
   build:
-    context: ../frontend            # aponta para a pasta irmã
+    context: ./frontend
     dockerfile: Dockerfile.web
   container_name: atendeja-web
   depends_on:
@@ -85,15 +85,15 @@ web:
   ports:
     - "8082:80"
   volumes:
-    - ../frontend/ui/public/env.js:/usr/share/nginx/html/env.js:ro
+    - ./frontend/ui/public/env.js:/usr/share/nginx/html/env.js:ro
 ```
 - Observação: serviços `api`, `worker`, `postgres`, `redis` e `adminer` já existem.
 
 ## Passo a passo para subir o front
 1) Garanta que os arquivos existem:
-   - `../frontend/Dockerfile.web`
-   - `../frontend/nginx/nginx.conf`
-   - `../frontend/ui/public/env.js` com `window.ENV.API_BASE_URL = '/api';`
+   - `./frontend/Dockerfile.web`
+   - `./frontend/nginx/nginx.conf`
+   - `./frontend/ui/public/env.js` com `window.ENV.API_BASE_URL = '/api';`
 2) A partir de `atendeja-chatbot/`:
 ```powershell
 docker compose build web
@@ -104,7 +104,7 @@ docker compose up -d --no-deps --force-recreate web
 ## Desenvolvimento local do front (opcional, sem Docker)
 - Para o IDE não mostrar erros de tipos, instale dependências localmente:
 ```powershell
-pushd ..\frontend\ui
+pushd ./frontend/ui
 npm install
 npm run dev
 popd
@@ -114,8 +114,8 @@ popd
 
 ## Troubleshooting
 - "no configuration file provided: not found": execute comandos na pasta que contém `docker-compose.yml` (`atendeja-chatbot/`) ou use `-f` com o caminho do compose.
-- "failed to read dockerfile": verifique `build.context` e `dockerfile` no compose. Com estrutura recomendada, `context: ../frontend` e `dockerfile: Dockerfile.web`.
-- "... /ui/public/env.js: not found": crie `../frontend/ui/public/env.js` ou ajuste o caminho no Dockerfile se necessário.
+- "failed to read dockerfile": verifique `build.context` e `dockerfile` no compose. Com estrutura recomendada, `context: ./frontend` e `dockerfile: Dockerfile.web`.
+- "... /ui/public/env.js: not found": crie `./frontend/ui/public/env.js` ou ajuste o caminho no Dockerfile se necessário.
 - "npm ci ... package-lock.json": se não houver `package-lock.json`, o `npm ci` falha. O comando cai no `npm install`. Certifique-se de que `package.json` está presente em `frontend/ui`.
 - CORS: não necessário no Docker Compose, pois o front chama `http://api:8000` dentro da rede dos serviços.
 
@@ -137,6 +137,49 @@ popd
 - Camada de i18n para status (en→pt-BR) em `frontend/ui/src/i18n/status.ts`.
 - Página inicial `KanbanPage.tsx` criada e conectada ao `App` com auto-refresh e filtros básicos.
 - Reverse proxy configurado no Nginx para `/api` → `http://api:8000` e `env.js` apontando para `/api`.
+
+## CI do Frontend
+- Pipeline GitHub Actions em `.github/workflows/frontend-ci.yml` para rodar `npm ci`, `tsc --noEmit`, `npm run lint`, `npm run test` e `npm run build` na pasta `frontend/ui` em pushes/PRs.
+
+## Decisões e mudanças (12/09/2025 - tarde)
+
+- Fluxo de Rascunho:
+  - A ação "Aguardando pagamento" no cartão não chama a API diretamente. Ela abre o `OrderDrawer` para validações.
+  - No Drawer, adicionamos:
+    - Botão "Confirmar pedido (Aguardando pagamento)" que executa `PATCH /orders/{id}?op=confirm`.
+    - Formulário mínimo de endereço e ação `PATCH /orders/{id}?op=set_address`.
+  - Motivo: a API exige endereço e loja aberta; confirmar direto do cartão gerava 400.
+- Auto-refresh:
+  - Pausamos o auto-refresh enquanto o Drawer está aberto e retomamos ao fechar (com small delay). Evita perda de foco ao editar endereço.
+- Ações por etapa (configurável):
+  - `frontend/ui/public/config.json` mapeia `kanban.actions` por status.
+  - Estados terminais (`delivered`, `canceled`) não exibem ações no cartão, mesmo se configuradas por engano.
+- Cache do config:
+  - `nginx.conf` com `location = /config.json { Cache-Control: no-store }` para refletir alterações sem hard refresh.
+- Layout das colunas:
+  - Grid substituído por `flex-row` com `overflow-x-auto` e colunas com largura fixa (320px). Garante colunas lado a lado com scroll horizontal.
+- Nomenclatura de colunas:
+  - `out_for_delivery` → "Em rota"; `delivered` → "Finalizado".
+
+## Próximos passos imediatos (Painel)
+
+- Contagem de cartões no cabeçalho de cada coluna.
+- Desabilitar botões na Kanban enquanto a chamada assíncrona estiver em andamento.
+- Melhorar validação do endereço (CEP e UF) e feedback por campo.
+- Testes: cobrir `confirmOrder` (sucesso e 400 address_required) e mapeamento de ações por `config.json`.
+
+## Evolução para App Shell e rotas
+
+- Introduzir `AppShell` com `Sidebar`/`Topbar` e `react-router-dom`.
+- Rotas iniciais: `/dashboard`, `/orders` (Kanban), `/delivery`, `/menu`, `/customers`, `/settings`.
+- Providers no shell: `ConfigProvider`, futuro `AuthProvider` e logger global.
+- RBAC: perfis operador (Orders) e gerente (todas as rotas).
+
+## Ajustes sugeridos no CI
+
+- Adicionar cache do `~/.npm` (já habilitado via `actions/setup-node` com `cache: npm`).
+- Rodar passos apenas quando arquivos em `frontend/ui/**` mudarem (paths-filter) para otimizar execuções.
+- Publicar artefatos de build (`dist/`) como artifact do job (útil para previews).
 
 ## Decisão Arquitetural Registrada
 - Motivo: Em ambiente de browser, o hostname `api` não resolve fora da rede Docker. Para evitar CORS e dependência de DNS, adota-se reverse proxy no Nginx do `web` para `/api`.
