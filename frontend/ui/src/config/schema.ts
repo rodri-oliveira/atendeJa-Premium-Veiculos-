@@ -18,6 +18,14 @@ export type UIConfig = {
     columns: ColumnSpec[]
     actions?: Record<string, ActionSpec[]>
   }
+  ui?: {
+    compactDefault?: boolean
+    zoomDefault?: number
+    columnWidth?: number
+    targetColumnsDefault?: number
+    columnWidthMin?: number
+    columnWidthMax?: number
+  }
 }
 
 export const defaultConfig: UIConfig = {
@@ -46,5 +54,13 @@ export const defaultConfig: UIConfig = {
         { label: 'Finalizar', next: 'delivered' },
       ],
     },
+  },
+  ui: {
+    compactDefault: false,
+    zoomDefault: 1,
+    columnWidth: 280,
+    targetColumnsDefault: 7,
+    columnWidthMin: 220,
+    columnWidthMax: 320,
   },
 }

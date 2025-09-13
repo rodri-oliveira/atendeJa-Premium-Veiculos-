@@ -33,5 +33,10 @@
         { "label": "Cancelar", "next": "canceled" }
       ]
     }
+  },
+  "ui": {
+    "compactDefault": true,
+    "zoomDefault": 0.8,
+    "columnWidth": 240
   }
 }

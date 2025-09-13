@@ -16,7 +16,7 @@ describe('KanbanPage com configuração em runtime', () => {
             branding: { appTitle: 'Ops Petshop' },
             kanban: { columns: [{ status: 'draft', title: 'Novo Pedido' }] },
           }),
-          { status: 200 }
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
         )
       }
       if (url.includes('/orders') && (!init || init.method === 'GET')) {

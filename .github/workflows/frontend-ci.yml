@@ -1,18 +1,7 @@
 name: Frontend CI
 
 on:
-  push:
-    branches: [ main, feature/** ]
-    paths:
-      - 'frontend/ui/**'
-      - 'frontend/nginx/**'
-      - 'frontend/Dockerfile.web'
-  pull_request:
-    branches: [ main ]
-    paths:
-      - 'frontend/ui/**'
-      - 'frontend/nginx/**'
-      - 'frontend/Dockerfile.web'
+  workflow_dispatch:
 
 jobs:
   ui:

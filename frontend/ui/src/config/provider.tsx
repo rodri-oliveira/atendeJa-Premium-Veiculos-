@@ -15,8 +15,15 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
     let alive = true
     ;(async () => {
       try {
-        const res = await fetch('/config.json')
+        const url = `${import.meta.env.BASE_URL || '/'}config.json`
+        const res = await fetch(url, { cache: 'no-store' })
         if (alive && res.ok) {
+          const ct = res.headers.get('Content-Type') || ''
+          if (!ct.toLowerCase().includes('application/json')) {
+            // Em dev, pode retornar index.html; ignora e usa default
+            console.warn('ConfigProvider: /config.json não é JSON. Mantendo defaultConfig.')
+            return
+          }
           const data = (await res.json()) as UIConfig
           setCfg({
             ...defaultConfig,
@@ -28,7 +35,8 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
           })
         }
       } catch {
-        // fallback para defaultConfig
+        // fallback para defaultConfig em caso de erro
+        console.warn('ConfigProvider: erro ao carregar /config.json, usando defaultConfig')
       }
     })()
     return () => {
