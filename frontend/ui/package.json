@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "lint": "eslint .",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "check": "npm run lint && npx tsc --noEmit && npm test && npm run build"
   },
   "dependencies": {
     "react": "18.3.1",

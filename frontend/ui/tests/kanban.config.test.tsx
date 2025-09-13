@@ -34,8 +34,8 @@ describe('KanbanPage com configuração em runtime', () => {
     )
     const title = await screen.findByText('Ops Petshop')
     expect(!!title).toBe(true)
-    // coluna rebatizada
-    const col = await screen.findByText('Novo Pedido')
-    expect(!!col).toBe(true)
+    // coluna rebatizada (o header agora inclui contagem, então validamos via data-testid)
+    const header = await screen.findByTestId('col-header-draft')
+    expect(header.textContent).toContain('Novo Pedido')
   })
 })

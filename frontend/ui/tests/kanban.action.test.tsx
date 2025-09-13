@@ -12,14 +12,14 @@ describe('KanbanPage - ação de mudar status', () => {
     root.setAttribute('id', 'root')
     document.body.appendChild(root)
 
-    // Primeiro GET retorna um pedido em draft (#1)
+    // Primeiro GET retorna um pedido em paid (#1)
     // Após PATCH, GET subsequente retorna o mesmo pedido em in_kitchen
     let calls = 0
     g.fetch = vi.fn(async (url: string, init?: RequestInit) => {
       if (url.includes('/orders') && (!init || init.method === 'GET')) {
         calls++
         if (calls === 1) {
-          return new Response(JSON.stringify([{ id: '1', status: 'draft', total_amount: 10 }]), { status: 200 })
+          return new Response(JSON.stringify([{ id: '1', status: 'paid', total_amount: 10 }]), { status: 200 })
         }
         return new Response(JSON.stringify([{ id: '1', status: 'in_kitchen', total_amount: 10 }]), { status: 200 })
       }
@@ -33,11 +33,11 @@ describe('KanbanPage - ação de mudar status', () => {
     }
   })
 
-  it('dispara PATCH e atualiza a coluna', async () => {
+  it('dispara PATCH (paid -> in_kitchen) e atualiza a coluna', async () => {
     const container = document.getElementById('root') as HTMLElement
     render(<KanbanPage />, { container })
 
-    // Botão de ação aparece no card do draft
+    // Botão de ação aparece no card do status paid
     const button = await screen.findByRole('button', { name: /Marcar em preparo/i })
     fireEvent.click(button)
 
