@@ -45,6 +45,33 @@ class ImovelCriar(BaseModel):
     area_total: Optional[float] = None
     area_util: Optional[float] = None
     ano_construcao: Optional[int] = None
+    
+    model_config = {
+        "json_schema_extra": {
+            "examples": [
+                {
+                    "titulo": "Apto 2 dorm SP - metrô",
+                    "descricao": "Andar alto, 1 vaga, perto do metrô.",
+                    "tipo": "apartment",
+                    "finalidade": "rent",
+                    "preco": 3000,
+                    "condominio": 550,
+                    "iptu": 120,
+                    "cidade": "São Paulo",
+                    "estado": "SP",
+                    "bairro": "Centro",
+                    "endereco_json": {"rua": "Rua Exemplo", "numero": "123", "cep": "01000-000"},
+                    "dormitorios": 2,
+                    "banheiros": 1,
+                    "suites": 0,
+                    "vagas": 1,
+                    "area_total": 65,
+                    "area_util": 60,
+                    "ano_construcao": 2012
+                }
+            ]
+        }
+    }
 
 
 class ImovelSaida(BaseModel):
@@ -84,6 +111,14 @@ class ImovelAtualizar(BaseModel):
     area_util: Optional[float] = None
     ano_construcao: Optional[int] = None
     ativo: Optional[bool] = None
+    
+    model_config = {
+        "json_schema_extra": {
+            "examples": [
+                {"preco": 3200, "ativo": True, "descricao": "Atualizado: com armários planejados."}
+            ]
+        }
+    }
 
 
 @router.post(
@@ -93,6 +128,8 @@ class ImovelAtualizar(BaseModel):
     description="Cria um novo imóvel com os atributos básicos (tipo, finalidade, preço e localização)",
 )
 def create_property(payload: ImovelCriar, db: Session = Depends(get_db)):
+    if settings.RE_READ_ONLY:
+        raise HTTPException(status_code=403, detail="read_only_mode")
     tenant_id = int(1) if settings.DEFAULT_TENANT_ID == "default" else 1
     prop = Property(
         tenant_id=tenant_id,
@@ -181,6 +218,8 @@ def get_property(property_id: int, db: Session = Depends(get_db)):
     description="Atualiza parcialmente campos do imóvel, incluindo ativação/desativação.",
 )
 def update_property(property_id: int, payload: ImovelAtualizar, db: Session = Depends(get_db)):
+    if settings.RE_READ_ONLY:
+        raise HTTPException(status_code=403, detail="read_only_mode")
     prop = db.get(Property, property_id)
     if not prop:
         raise HTTPException(status_code=404, detail="property_not_found")
@@ -220,6 +259,27 @@ class LeadCreate(BaseModel):
     origem: Optional[str] = Field(default="whatsapp")
     preferencias: Optional[dict] = None
     consentimento_lgpd: bool = Field(default=False)
+    
+    model_config = {
+        "json_schema_extra": {
+            "examples": [
+                {
+                    "nome": "Fulano",
+                    "telefone": "+5511999990000",
+                    "email": "fulano@exemplo.com",
+                    "origem": "whatsapp",
+                    "preferencias": {
+                        "finalidade": "sale",
+                        "cidade": "São Paulo",
+                        "tipo": "apartment",
+                        "dormitorios": 2,
+                        "preco_max": 400000
+                    },
+                    "consentimento_lgpd": True
+                }
+            ]
+        }
+    }
 
 
 class LeadOut(BaseModel):
@@ -293,6 +353,19 @@ class ImagemCriar(BaseModel):
     is_capa: Optional[bool] = False
     ordem: Optional[int] = 0
     storage_key: Optional[str] = None
+    
+    model_config = {
+        "json_schema_extra": {
+            "examples": [
+                {
+                    "url": "https://exemplo-cdn.com/imoveis/1/capa.jpg",
+                    "is_capa": True,
+                    "ordem": 0,
+                    "storage_key": "imoveis/1/capa.jpg"
+                }
+            ]
+        }
+    }
 
 
 class ImagemSaida(BaseModel):
@@ -343,6 +416,61 @@ def list_imagens(property_id: int, db: Session = Depends(get_db)):
     )
     rows = db.execute(stmt).scalars().all()
     return [ImagemSaida(id=r.id, url=r.url, is_capa=r.is_cover, ordem=r.sort_order) for r in rows]
+
+
+# --- Detalhes do imóvel (consolidado) ---
+class ImovelDetalhes(BaseModel):
+    id: int
+    titulo: str
+    descricao: Optional[str] = None
+    tipo: PropertyType
+    finalidade: PropertyPurpose
+    preco: float
+    cidade: str
+    estado: str
+    bairro: Optional[str] = None
+    dormitorios: Optional[int] = None
+    banheiros: Optional[int] = None
+    suites: Optional[int] = None
+    vagas: Optional[int] = None
+    area_total: Optional[float] = None
+    area_util: Optional[float] = None
+    imagens: List[ImagemSaida] = []
+
+
+@router.get(
+    "/imoveis/{property_id}/detalhes",
+    response_model=ImovelDetalhes,
+    summary="Detalhes do imóvel (com imagens)",
+)
+def get_imovel_detalhes(property_id: int, db: Session = Depends(get_db)):
+    prop = db.get(Property, property_id)
+    if not prop:
+        raise HTTPException(status_code=404, detail="property_not_found")
+    stmt = (
+        select(PropertyImage)
+        .where(PropertyImage.property_id == property_id)
+        .order_by(PropertyImage.is_cover.desc(), PropertyImage.sort_order.asc(), PropertyImage.id.asc())
+    )
+    imgs = db.execute(stmt).scalars().all()
+    return ImovelDetalhes(
+        id=prop.id,
+        titulo=prop.title,
+        descricao=prop.description,
+        tipo=prop.type,
+        finalidade=prop.purpose,
+        preco=prop.price,
+        cidade=prop.address_city,
+        estado=prop.address_state,
+        bairro=prop.address_neighborhood,
+        dormitorios=prop.bedrooms,
+        banheiros=prop.bathrooms,
+        suites=prop.suites,
+        vagas=prop.parking_spots,
+        area_total=prop.area_total,
+        area_util=prop.area_usable,
+        imagens=[ImagemSaida(id=i.id, url=i.url, is_capa=i.is_cover, ordem=i.sort_order) for i in imgs],
+    )
 
 
 # --- helpers ---

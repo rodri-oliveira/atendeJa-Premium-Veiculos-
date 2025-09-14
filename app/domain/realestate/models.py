@@ -44,6 +44,11 @@ class Property(Base):
     condo_fee: Mapped[float | None] = mapped_column(Float, nullable=True)
     iptu: Mapped[float | None] = mapped_column(Float, nullable=True)
 
+    # Integrações / Importação
+    external_id: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    source: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    updated_at_source: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
     # Localização (colunas normalizadas para filtros + JSON opcional)
     address_city: Mapped[str] = mapped_column(String(120), index=True)
     address_state: Mapped[str] = mapped_column(String(2), index=True)
@@ -71,6 +76,7 @@ class Property(Base):
         Index("idx_re_prop_tenant_purpose_type_city", "tenant_id", "purpose", "type", "address_city"),
         Index("idx_re_prop_price", "price"),
         Index("idx_re_prop_active", "is_active"),
+        Index("uix_re_prop_tenant_external", "tenant_id", "external_id", unique=True),
     )
 
 

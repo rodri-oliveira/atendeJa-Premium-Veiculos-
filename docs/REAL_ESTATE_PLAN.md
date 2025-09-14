@@ -30,6 +30,7 @@
 - PATCH /re/imoveis/{id} – atualizar parcial (inclui ativar/desativar)
 - POST /re/imoveis/{id}/imagens – adicionar imagem (url, capa, ordem)
 - GET  /re/imoveis/{id}/imagens – listar imagens
+- GET  /re/imoveis/{id}/detalhes – imóvel consolidado com imagens (para o front)
 - POST /re/leads – cadastrar lead (nome, telefone, email, origem, preferencias, consentimento_lgpd)
 - GET  /re/leads – listar leads
 
@@ -78,6 +79,11 @@ Eventos de negócio (logs): lead.created, inquiry.created, visit.requested
 - Roteamento no webhook por flag: `MCP_ENABLED=true` delega interpretação ao MCP; fallback para funil determinístico em caso de falha.
 - Políticas: whitelist de tools por tenant, logs estruturados (`mcp.request`, `mcp.tool_call`, `mcp.response`), evitar dados sensíveis.
 
+### Modo Auto (heurísticas MVP)
+- Extrai intenção (comprar/alugar), tipo (apartamento/casa), cidade/UF (ex.: São Paulo/SP).
+- Extrai dormitórios a partir de “2 quartos”/“2 dorm”.
+- Extrai preço a partir de “até 3500”, “2000-3500” ou número solto “3500” (teto).
+
 ## Ingestão de Leads Multi‑Fonte
 - Webhooks por fonte: `POST /integrations/leads/{fonte}` (ex.: `meta`, `google`, `portalX`).
 - Staging: tabela `staging_leads` com payload bruto, `external_lead_id`, `source`, `received_at` e `processed_at`.
@@ -113,6 +119,25 @@ Eventos de negócio (logs): lead.created, inquiry.created, visit.requested
 - Storage: `STORAGE_PROVIDER=s3`, `S3_*` (quando ativarmos upload).
 - MCP: `MCP_ENABLED`, `MCP_TOOLS_WHITELIST`.
 - Imóveis somente leitura (produção): `RE_READ_ONLY=true` (bloqueia POST/PATCH de imóveis; usar importação/sync).
+
+## Migrações (Alembic) – Procedimento com Docker
+- Inicializar (uma vez, dentro do container): `docker compose exec api alembic init migrations`
+- Ajustes feitos no repo:
+  - `migrations/env.py` usa `settings.DATABASE_URL` e `CoreBase.metadata` (resiliente ao logging).
+  - `alembic.ini` com `script_location=/app/migrations` dentro do container.
+- Gerar revisão automática (exemplo):
+  - `docker compose exec api alembic -c /app/alembic.ini revision --autogenerate -m "mensagem"`
+- Aplicar:
+  - `docker compose exec api alembic -c /app/alembic.ini upgrade head`
+- Observação: Em rebuild da imagem, copie `migrations/` e `alembic.ini` para o container, se necessário:
+  - `docker cp .\migrations atendeja-api:/app/`
+  - `docker cp .\alembic.ini atendeja-api:/app/alembic.ini`
+
+## Importação de Imóveis (preparação)
+- Campos adicionados em `re_properties` para integração/sync:
+  - `external_id` (string), `source` (string), `updated_at_source` (datetime)
+  - Índice único por `(tenant_id, external_id)`.
+- Próximo: endpoint admin `POST /admin/re/imoveis/import-csv` com upsert por `external_id` e parse de `imagens_urls` (separadas por `;`).
 
 ## Deploy
 - Local: `docker compose up -d --build postgres api` (opcional `adminer`).

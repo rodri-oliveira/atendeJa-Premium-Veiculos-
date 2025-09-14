@@ -8,6 +8,7 @@ from app.api.routes.health import router as health_router
 from app.api.routes.webhook import router as webhook_router
 from app.api.routes.admin import router as admin_router
 from app.api.routes.realestate import router as realestate_router
+from app.api.routes.mcp import router as mcp_router
 from app.repositories.db import engine
 from app.repositories.models import Base
 import app.domain.realestate.models  # noqa: F401 - importa modelos para registrar no metadata
@@ -42,6 +43,7 @@ app.include_router(health_router, prefix="/health", tags=["health"])
 app.include_router(webhook_router, prefix="/webhook", tags=["webhook"]) 
 app.include_router(admin_router, prefix="/admin", tags=["admin"]) 
 app.include_router(realestate_router, prefix="/re", tags=["realestate"]) 
+app.include_router(mcp_router, prefix="/mcp", tags=["mcp"]) 
 
 # Global error handlers (uniform error payloads)
 app.add_exception_handler(HTTPException, http_exception_handler)

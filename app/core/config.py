@@ -33,6 +33,12 @@ class Settings(BaseSettings):
     REDIS_PORT: int = 6379
     REDIS_DB: int = 0
 
+    # MCP (Model Context Protocol) – autenticação simples para /mcp/execute
+    MCP_API_TOKEN: str = ""  # quando definido, exigir Bearer <token> no endpoint MCP
+
+    # Imóveis somente leitura (produção)
+    RE_READ_ONLY: bool = False
+
     @property
     def DATABASE_URL(self) -> str:
         if self.DATABASE_URL_OVERRIDE:
