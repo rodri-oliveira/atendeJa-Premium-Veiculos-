@@ -7,10 +7,10 @@ from app.core.logging import configure_logging
 from app.api.routes.health import router as health_router
 from app.api.routes.webhook import router as webhook_router
 from app.api.routes.admin import router as admin_router
-from app.api.routes.menu import router as menu_router
-from app.api.routes.orders import router as orders_router
+from app.api.routes.realestate import router as realestate_router
 from app.repositories.db import engine
 from app.repositories.models import Base
+import app.domain.realestate.models  # noqa: F401 - importa modelos para registrar no metadata
 from contextlib import asynccontextmanager
 
 configure_logging()
@@ -24,13 +24,24 @@ async def lifespan(app: FastAPI):
     # Shutdown: nothing for now
 
 
-app = FastAPI(title="AtendeJá Chatbot API", version="0.1.0", lifespan=lifespan)
+tags_metadata = [
+    {"name": "health", "description": "Healthchecks de liveness/readiness."},
+    {"name": "webhook", "description": "Webhook do WhatsApp Cloud API."},
+    {"name": "admin", "description": "Endpoints administrativos (futuros)."},
+    {"name": "realestate", "description": "Domínio imobiliário: imóveis e leads."},
+]
+
+app = FastAPI(
+    title="AtendeJá Chatbot API",
+    version="0.1.0",
+    openapi_tags=tags_metadata,
+    lifespan=lifespan,
+)
 
 app.include_router(health_router, prefix="/health", tags=["health"]) 
 app.include_router(webhook_router, prefix="/webhook", tags=["webhook"]) 
 app.include_router(admin_router, prefix="/admin", tags=["admin"]) 
-app.include_router(menu_router, prefix="/menu", tags=["menu"]) 
-app.include_router(orders_router, prefix="/orders", tags=["orders"]) 
+app.include_router(realestate_router, prefix="/re", tags=["realestate"]) 
 
 # Global error handlers (uniform error payloads)
 app.add_exception_handler(HTTPException, http_exception_handler)

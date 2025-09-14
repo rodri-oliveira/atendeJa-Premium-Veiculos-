@@ -20,7 +20,6 @@ RUN poetry config virtualenvs.create false \
 
 # Now copy the application code
 COPY app ./app
-COPY .env.example ./.env.example
 COPY tests ./tests
 
 EXPOSE 8000
