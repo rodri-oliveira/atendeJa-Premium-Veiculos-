@@ -146,7 +146,7 @@ export default function KanbanPage() {
 
   return (
     <div className="relative px-4 md:px-6 lg:px-8 py-4 min-h-screen overflow-x-auto">
-      <div className="sticky top-0 z-10 bg-white/80 backdrop-blur border-b border-gray-200 -mx-4 md:-mx-6 lg:-mx-8 px-4 md:px-6 lg:px-8 pb-3">
+      <div className="sticky top-0 z-10 bg-white/80 backdrop-blur border-b border-neutral-200 -mx-4 md:-mx-6 lg:-mx-8 px-4 md:px-6 lg:px-8 pb-3">
         <div className="flex items-start justify-between">
           <div>
             <h1 className="text-xl font-semibold">{ui.branding?.appTitle || 'Painel Operacional'}</h1>
@@ -156,7 +156,7 @@ export default function KanbanPage() {
           </div>
           <div className="flex items-center gap-3">
             <button
-              className="text-xs md:text-sm px-3 py-1 rounded border bg-white hover:bg-gray-50"
+              className="text-xs md:text-sm px-3 py-1 rounded border border-neutral-300 bg-white hover:bg-neutral-50 text-neutral-700"
               onClick={() => {
                 setPauseUntilMs(Date.now() + 2_000)
                 fetchData()
@@ -165,7 +165,7 @@ export default function KanbanPage() {
               Atualizar agora
             </button>
             <button
-              className="text-xs md:text-sm px-3 py-1 rounded border bg-white hover:bg-gray-50"
+              className="text-xs md:text-sm px-3 py-1 rounded border border-neutral-300 bg-white hover:bg-neutral-50 text-neutral-700"
               onClick={() => {
                 const next = !compact
                 setCompact(next)
@@ -177,7 +177,7 @@ export default function KanbanPage() {
             <div className="flex items-center gap-1 text-xs md:text-sm">
               <label className="text-gray-600">Colunas</label>
               <select
-                className="border rounded px-2 py-1"
+                className="border border-neutral-300 rounded px-2 py-1 bg-white text-neutral-700 hover:bg-neutral-50"
                 value={targetCols}
                 onChange={(e) => {
                   const v = Number(e.target.value)
