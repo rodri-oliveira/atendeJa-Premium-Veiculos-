@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react'
-import { getOrder, getOrderEvents, getOrderRelation, getOrderReorders, type OrderDetails, type OrderEvent, type Order } from '../lib/api'
+import React, { useCallback, useEffect, useState } from 'react'
+import { getOrder, getOrderEvents, getOrderRelation, getOrderReorders, confirmOrder, setOrderAddress, type OrderDetails, type OrderEvent, type Order, type Address } from '../lib/api'
 
 interface Props {
   orderId: string
@@ -12,26 +12,78 @@ export default function OrderDrawer({ orderId, onClose }: Props) {
   const [relation, setRelation] = useState<{ source_order_id: number | null } | null>(null)
   const [reorders, setReorders] = useState<Order[] | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [busy, setBusy] = useState<boolean>(false)
+  const [addr, setAddr] = useState<Address | null>(null)
+  const [addrErrors, setAddrErrors] = useState<Record<string, string>>({})
+
+  const errMsg = (e: unknown) => (e instanceof Error ? e.message : String(e))
+
+  const isRecord = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object'
+  const pickString = useCallback((obj: unknown, key: string): string => {
+    if (!isRecord(obj)) return ''
+    const val = (obj as Record<string, unknown>)[key]
+    return typeof val === 'string' ? val : ''
+  }, [])
+
+  const validateAddr = (a: Address | null) => {
+    const errs: Record<string, string> = {}
+    if (!a) return errs
+    if (!a.street?.trim()) errs.street = 'Informe a rua'
+    if (!a.number?.trim()) errs.number = 'Informe o número'
+    if (!a.city?.trim()) errs.city = 'Informe a cidade'
+    if (!a.state?.trim()) errs.state = 'Informe UF'
+    if (a.state && !/^([A-Za-z]{2})$/.test(a.state.trim())) errs.state = 'UF deve ter 2 letras'
+    if (!a.cep?.trim()) errs.cep = 'Informe o CEP'
+    if (a.cep && !/^\d{5}-?\d{3}$/.test(a.cep.trim())) errs.cep = 'CEP deve ser 00000-000'
+    return errs
+  }
+
+  const formatCep = (value: string) => {
+    const digits = (value || '').replace(/\D/g, '').slice(0, 8)
+    if (digits.length <= 5) return digits
+    return `${digits.slice(0,5)}-${digits.slice(5)}`
+  }
 
   useEffect(() => {
     let alive = true
     const load = async () => {
       try {
         setError(null)
-        const [d, ev, rel, rorders] = await Promise.all([
-          getOrder(orderId),
+        // Carrega detalhes primeiro; demais recursos são auxiliares e não devem bloquear o Drawer
+        const d = await getOrder(orderId)
+        if (!alive) return
+        setDetails(d)
+        try {
+          const a = d?.delivery_address ?? {}
+          const street = pickString(a, 'street')
+          const number = pickString(a, 'number')
+          const district = pickString(a, 'district')
+          const city = pickString(a, 'city')
+          const state = pickString(a, 'state')
+          const cep = pickString(a, 'cep')
+          const payload: Address = street || number || city
+            ? { street, number, district, city, state, cep }
+            : { street: '', number: '', district: '', city: '', state: '', cep: '' }
+          setAddr(payload)
+          setAddrErrors(validateAddr(payload))
+        } catch {
+          const payload: Address = { street: '', number: '', district: '', city: '', state: '', cep: '' }
+          setAddr(payload)
+          setAddrErrors(validateAddr(payload))
+        }
+        // Busca eventos/relação/reorders em paralelo, com tolerância a falhas
+        const [evRes, relRes, rordersRes] = await Promise.allSettled([
           getOrderEvents(orderId),
           getOrderRelation(orderId),
           getOrderReorders(orderId),
         ])
         if (!alive) return
-        setDetails(d)
-        setEvents(ev)
-        setRelation(rel)
-        setReorders(rorders)
-      } catch (e: any) {
+        setEvents(evRes.status === 'fulfilled' ? evRes.value : [])
+        setRelation(relRes.status === 'fulfilled' ? relRes.value : { source_order_id: null })
+        setReorders(rordersRes.status === 'fulfilled' ? rordersRes.value : [])
+      } catch (e: unknown) {
         if (!alive) return
-        setError(e?.message || 'Falha ao carregar detalhes')
+        setError(errMsg(e) || 'Falha ao carregar detalhes')
       }
     }
     load()
@@ -43,7 +95,7 @@ export default function OrderDrawer({ orderId, onClose }: Props) {
       alive = false
       window.removeEventListener('keydown', onKey)
     }
-  }, [orderId, onClose])
+  }, [orderId, onClose, pickString])
 
   return (
     <div className="fixed inset-0 z-50" role="dialog" aria-modal="true">
@@ -59,6 +111,145 @@ export default function OrderDrawer({ orderId, onClose }: Props) {
         )}
         {details && (
           <div className="p-3 space-y-4">
+            {details.status === 'draft' && (
+              <section>
+                <h3 className="font-semibold mb-2">Ações</h3>
+                <div className="flex gap-2">
+                  <button
+                    className="text-sm px-3 py-1 rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+                    disabled={busy}
+                    onClick={async () => {
+                      try {
+                        setBusy(true)
+                        setError(null)
+                        await confirmOrder(orderId)
+                        // reload details após confirmar
+                        const d = await getOrder(orderId)
+                        setDetails(d)
+                      } catch (e: unknown) {
+                        setError(errMsg(e) || 'Falha ao confirmar pedido')
+                      } finally {
+                        setBusy(false)
+                      }
+                    }}
+                  >
+                    Confirmar pedido (Aguardando pagamento)
+                  </button>
+                </div>
+                <p className="text-xs text-gray-600 mt-2">
+                  Para confirmar, é necessário endereço válido no pedido. Caso veja o erro &quot;address_required&quot;, preencha o endereço antes.
+                </p>
+              </section>
+            )}
+            {details.status === 'draft' && (
+              <section data-testid="addr-section">
+                <h3 className="font-semibold mb-2">Endereço (obrigatório para confirmar)</h3>
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <label className="col-span-2" htmlFor="addr-street">
+                    Rua
+                    <input
+                      id="addr-street"
+                      className={`mt-1 w-full border rounded px-2 py-1 ${addrErrors.street ? 'border-red-500' : ''}`}
+                      value={addr?.street || ''}
+                      onChange={(e)=>{
+                        const next = { ...(addr||{street:'',number:'',district:'',city:'',state:'',cep:''}), street: e.target.value }
+                        setAddr(next as Address)
+                        setAddrErrors(validateAddr(next as Address))
+                      }}
+                    />
+                    {addrErrors.street && <span className="text-xs text-red-600">{addrErrors.street}</span>}
+                  </label>
+                  <label htmlFor="addr-number">
+                    Número
+                    <input
+                      id="addr-number"
+                      className={`mt-1 w-full border rounded px-2 py-1 ${addrErrors.number ? 'border-red-500' : ''}`}
+                      value={addr?.number || ''}
+                      onChange={(e)=>{
+                        const next = { ...(addr||{street:'',number:'',district:'',city:'',state:'',cep:''}), number: e.target.value }
+                        setAddr(next as Address)
+                        setAddrErrors(validateAddr(next as Address))
+                      }}
+                    />
+                    {addrErrors.number && <span className="text-xs text-red-600">{addrErrors.number}</span>}
+                  </label>
+                  <label htmlFor="addr-district">
+                    Bairro
+                    <input id="addr-district" className="mt-1 w-full border rounded px-2 py-1" value={addr?.district || ''} onChange={(e)=>{
+                      const next = { ...(addr||{street:'',number:'',district:'',city:'',state:'',cep:''}), district: e.target.value }
+                      setAddr(next as Address)
+                      setAddrErrors(validateAddr(next as Address))
+                    }} />
+                  </label>
+                  <label htmlFor="addr-city">
+                    Cidade
+                    <input
+                      id="addr-city"
+                      className={`mt-1 w-full border rounded px-2 py-1 ${addrErrors.city ? 'border-red-500' : ''}`}
+                      value={addr?.city || ''}
+                      onChange={(e)=>{
+                        const next = { ...(addr||{street:'',number:'',district:'',city:'',state:'',cep:''}), city: e.target.value }
+                        setAddr(next as Address)
+                        setAddrErrors(validateAddr(next as Address))
+                      }}
+                    />
+                    {addrErrors.city && <span className="text-xs text-red-600">{addrErrors.city}</span>}
+                  </label>
+                  <label htmlFor="addr-state">
+                    Estado
+                    <input
+                      id="addr-state"
+                      className={`mt-1 w-full border rounded px-2 py-1 ${addrErrors.state ? 'border-red-500' : ''}`}
+                      value={addr?.state || ''}
+                      onChange={(e)=>{
+                        const next = { ...(addr||{street:'',number:'',district:'',city:'',state:'',cep:''}), state: e.target.value.toUpperCase() }
+                        setAddr(next as Address)
+                        setAddrErrors(validateAddr(next as Address))
+                      }}
+                    />
+                    {addrErrors.state && <span className="text-xs text-red-600">{addrErrors.state}</span>}
+                  </label>
+                  <label htmlFor="addr-cep">
+                    CEP
+                    <input
+                      id="addr-cep"
+                      className={`mt-1 w-full border rounded px-2 py-1 ${addrErrors.cep ? 'border-red-500' : ''}`}
+                      value={addr?.cep || ''}
+                      onChange={(e)=>{
+                        const masked = formatCep(e.target.value)
+                        const next = { ...(addr||{street:'',number:'',district:'',city:'',state:'',cep:''}), cep: masked }
+                        setAddr(next as Address)
+                        setAddrErrors(validateAddr(next as Address))
+                      }}
+                    />
+                    {addrErrors.cep && <span className="text-xs text-red-600">{addrErrors.cep}</span>}
+                  </label>
+                </div>
+                <div className="mt-2">
+                  <button
+                    className="text-sm px-3 py-1 rounded bg-gray-800 text-white hover:bg-gray-900 disabled:opacity-50"
+                    disabled={busy || Object.keys(addrErrors).length > 0}
+                    aria-label="Salvar endereço"
+                    onClick={async ()=>{
+                      try {
+                        if (!addr) return
+                        setBusy(true)
+                        setError(null)
+                        await setOrderAddress(orderId, addr)
+                        const d = await getOrder(orderId)
+                        setDetails(d)
+                      } catch (e: unknown) {
+                        setError(errMsg(e) || 'Falha ao salvar endereço')
+                      } finally {
+                        setBusy(false)
+                      }
+                    }}
+                  >
+                    Salvar endereço
+                  </button>
+                </div>
+              </section>
+            )}
             <section>
               <h3 className="font-semibold mb-1">Resumo</h3>
               <div className="text-sm text-gray-700">

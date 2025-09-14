@@ -1,0 +1,52 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "UI Config Schema",
+  "type": "object",
+  "properties": {
+    "branding": {
+      "type": "object",
+      "properties": {
+        "appTitle": { "type": "string" }
+      },
+      "additionalProperties": true
+    },
+    "kanban": {
+      "type": "object",
+      "properties": {
+        "columns": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "status": { "type": "string" },
+              "title": { "type": "string" }
+            },
+            "required": ["status", "title"],
+            "additionalProperties": false
+          },
+          "minItems": 1
+        },
+        "actions": {
+          "type": "object",
+          "description": "Ações por status, para renderização de botões no card",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "label": { "type": "string" },
+                "next": { "type": "string" }
+              },
+              "required": ["label", "next"],
+              "additionalProperties": false
+            }
+          }
+        }
+      },
+      "required": ["columns"],
+      "additionalProperties": false
+    }
+  },
+  "required": ["kanban"],
+  "additionalProperties": true
+}

@@ -16,7 +16,10 @@ describe('ConfigProvider', () => {
           branding: { appTitle: 'Teste App' },
           kanban: { columns: [{ status: 'draft', title: 'RascunhoX' }] },
         }
-        return new Response(JSON.stringify(cfg), { status: 200 })
+        return new Response(JSON.stringify(cfg), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        })
       }
       return new Response('', { status: 404 })
     })
