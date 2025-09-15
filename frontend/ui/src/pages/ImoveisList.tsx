@@ -30,6 +30,17 @@ export default function ImoveisList() {
   const [limit] = useState<number>(12)
   const [offset, setOffset] = useState<number>(0)
 
+  function clearFilters() {
+    setFinalidade('')
+    setTipo('')
+    setCidade('')
+    setEstado('')
+    setPrecoMin('')
+    setPrecoMax('')
+    setDormMin('')
+    setOffset(0)
+  }
+
   const queryString = useMemo(() => {
     const params = new URLSearchParams()
     if (finalidade) params.set('finalidade', finalidade)
@@ -110,7 +121,12 @@ export default function ImoveisList() {
               <label className="block text-xs text-gray-600 mb-1">Dormitórios mín.</label>
               <input type="number" value={dormMin} onChange={e => setDormMin(e.target.value)} className="w-full rounded border-gray-300 text-sm" placeholder="" />
             </div>
-            <div className="lg:col-span-5" />
+            <div className="lg:col-span-4" />
+            <div className="flex justify-end">
+              <button type="button" onClick={clearFilters} className="px-3 py-1.5 text-sm rounded border border-gray-300 bg-white hover:bg-gray-50">
+                Limpar filtros
+              </button>
+            </div>
           </form>
         </div>
       </header>
@@ -124,6 +140,14 @@ export default function ImoveisList() {
       {error && <div className="text-sm text-red-600">Erro: {error}</div>}
       {!loading && !error && (data?.length ?? 0) === 0 && (
         <div className="text-sm text-gray-600">Nenhum imóvel encontrado com os filtros atuais.</div>
+      )}
+      {!loading && !error && (
+        <div className="flex items-center justify-between text-xs text-gray-600">
+          <div>{(data?.length ?? 0)} resultados</div>
+          <div>
+            Página {Math.floor(offset / limit) + 1}
+          </div>
+        </div>
       )}
       {!loading && !error && (data?.length ?? 0) > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">

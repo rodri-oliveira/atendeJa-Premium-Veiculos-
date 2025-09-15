@@ -12,6 +12,7 @@ export default function AppShell() {
         <nav className="p-3 space-y-1 text-sm">
           <div className="px-3 py-2 text-xs uppercase tracking-wide text-gray-400">Imobiliário</div>
           <Item to="/imoveis" label="Imóveis" />
+          <Item to="/import" label="Importar CSV" />
           <Item to="/leads" label="Leads" />
           <Item to="/ops" label="Ops" />
         </nav>
