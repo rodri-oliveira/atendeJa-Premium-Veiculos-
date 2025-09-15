@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { Link } from 'react-router-dom'
+import { apiFetch, isAuthenticated } from '../lib/auth'
 
 interface ImportResult {
   processed?: number
@@ -15,6 +16,7 @@ export default function ImportCsv() {
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<ImportResult | null>(null)
   const [success, setSuccess] = useState(false)
+  const authed = isAuthenticated()
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -24,11 +26,15 @@ export default function ImportCsv() {
       setError('Selecione um arquivo CSV.')
       return
     }
+    if (!authed) {
+      setError('Faça login para enviar (use /login).')
+      return
+    }
     try {
       setLoading(true)
       const fd = new FormData()
       fd.append('file', file)
-      const res = await fetch('/api/admin/re/imoveis/import-csv', {
+      const res = await apiFetch('/api/admin/re/imoveis/import-csv', {
         method: 'POST',
         body: fd,
       })
@@ -59,20 +65,27 @@ export default function ImportCsv() {
       </header>
 
       <form onSubmit={onSubmit} className="rounded-xl border border-slate-200 bg-white p-6 shadow-card space-y-4">
-        <div className="flex items-center gap-4">
-          <input
-            type="file"
-            accept=".csv,text/csv"
-            onChange={(e) => setFile(e.target.files?.[0] || null)}
-            className="text-sm file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100 transition-colors"
-          />
-          <button
-            type="submit"
-            disabled={loading || !file}
-            className="px-6 py-2.5 text-sm font-medium rounded-lg bg-primary-600 text-white hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
-          >
-            {loading ? 'Enviando...' : 'Enviar'}
-          </button>
+        {!authed && (
+          <div className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-3">
+            Você precisa <Link to="/login" className="underline font-medium">entrar</Link> para importar CSV.
+          </div>
+        )}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+          <div className="flex items-center gap-4">
+            <input
+              type="file"
+              accept=".csv,text/csv"
+              onChange={(e) => setFile(e.target.files?.[0] || null)}
+              className="text-sm file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100 transition-colors"
+            />
+            <button
+              type="submit"
+              disabled={loading || !file}
+              className="px-6 py-2.5 text-sm font-medium rounded-lg bg-primary-600 text-white hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+            >
+              {loading ? 'Enviando...' : 'Enviar'}
+            </button>
+          </div>
         </div>
         <div className="text-sm text-slate-500 bg-slate-50 rounded-lg p-3">
           💡 <strong>Dica:</strong> use o arquivo de exemplo disponível no repositório (import_sample.csv)

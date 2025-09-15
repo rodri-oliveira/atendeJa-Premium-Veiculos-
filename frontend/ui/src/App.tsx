@@ -7,6 +7,7 @@ import LeadsList from './pages/LeadsList'
 import OpsDashboard from './pages/OpsDashboard'
 import ImportCsv from './pages/ImportCsv'
 import About from './pages/About'
+import Login from './pages/Login'
 
 export default function App() {
   return (
@@ -23,6 +24,7 @@ export default function App() {
           <Route path="sobre" element={<About />} />
           <Route path="*" element={<Navigate to="/imoveis" replace />} />
         </Route>
+        <Route path="/login" element={<Login />} />
       </Routes>
     </BrowserRouter>
   )

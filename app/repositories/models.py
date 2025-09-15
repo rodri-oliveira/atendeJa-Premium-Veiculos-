@@ -12,6 +12,26 @@ class ConversationStatus(str, Enum):
     closed = "closed"
 
 
+class UserRole(str, Enum):
+    admin = "admin"
+    collaborator = "collaborator"
+
+
+class User(Base):
+    __tablename__ = "users"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    email: Mapped[str] = mapped_column(String(180), unique=True, index=True)
+    full_name: Mapped[str | None] = mapped_column(String(180), nullable=True)
+    hashed_password: Mapped[str] = mapped_column(String(255))
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    role: Mapped[UserRole] = mapped_column(SAEnum(UserRole), default=UserRole.collaborator, index=True)
+
+    __table_args__ = (
+        Index("uix_user_email", "email", unique=True),
+    )
+
+
 class Tenant(Base):
     __tablename__ = "tenants"
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)

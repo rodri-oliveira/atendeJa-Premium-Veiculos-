@@ -41,6 +41,12 @@ class Settings(BaseSettings):
     # Imóveis somente leitura (produção)
     RE_READ_ONLY: bool = False
 
+    # Auth (login do sistema)
+    AUTH_JWT_SECRET: str = "changeme"
+    AUTH_JWT_EXPIRE_MINUTES: int = 60
+    AUTH_SEED_ADMIN_EMAIL: str = ""
+    AUTH_SEED_ADMIN_PASSWORD: str = ""
+
     @property
     def DATABASE_URL(self) -> str:
         if self.DATABASE_URL_OVERRIDE:
