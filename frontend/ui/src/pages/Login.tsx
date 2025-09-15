@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { useNavigate, Link, useLocation } from 'react-router-dom'
 import { setToken, clearToken } from '../lib/auth'
 
 export default function Login() {
@@ -8,6 +8,7 @@ export default function Login() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const navigate = useNavigate()
+  const location = useLocation() as any
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -34,7 +35,8 @@ export default function Login() {
       const token = js?.access_token
       if (!token) throw new Error('token ausente na resposta')
       setToken(token)
-      navigate('/import', { replace: true })
+      const dest = location?.state?.redirectTo || '/imoveis'
+      navigate(dest, { replace: true })
     } catch (e: any) {
       setError(e?.message || 'Falha no login')
     } finally {

@@ -1,8 +1,39 @@
-import React from 'react'
-import { Link, NavLink, Outlet } from 'react-router-dom'
+import React, { useEffect, useState } from 'react'
+import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom'
 import ErrorBoundary from '../components/ErrorBoundary'
+import { isAuthenticated, clearToken } from '../lib/auth'
+import { apiFetch } from '../lib/auth'
 
 export default function AppShell() {
+  const authed = isAuthenticated()
+  const [me, setMe] = useState<{ email?: string } | null>(null)
+  const navigate = useNavigate()
+
+  useEffect(() => {
+    let alive = true
+    async function loadMe() {
+      try {
+        if (!authed) { setMe(null); return }
+        const res = await apiFetch('/api/auth/me')
+        if (res.ok) {
+          const js = await res.json()
+          if (alive) setMe(js)
+        } else {
+          if (alive) setMe(null)
+        }
+      } catch {
+        if (alive) setMe(null)
+      }
+    }
+    loadMe()
+    return () => { alive = false }
+  }, [authed])
+
+  function onLogout() {
+    clearToken()
+    setMe(null)
+    navigate('/login')
+  }
   return (
     <div className="min-h-screen flex bg-slate-50">
       <aside className="w-64 bg-gradient-to-b from-slate-800 to-slate-900 text-white flex-shrink-0 shadow-xl">
@@ -23,11 +54,32 @@ export default function AppShell() {
           <Item to="/import" label="Importar CSV" />
           <Item to="/leads" label="Leads" />
           <Item to="/ops" label="Operações" />
+          {authed && (
+            <>
+              <NavLink
+                to="/users"
+                className="block px-3 py-2 text-xs uppercase tracking-wide font-semibold text-slate-400 hover:text-white hover:bg-slate-700/50 rounded-lg"
+              >
+                Admin
+              </NavLink>
+              <Item to="/users" label="Usuários" />
+            </>
+          )}
           <Item to="/sobre" label="Sobre" />
         </nav>
       </aside>
       <main className="flex-1 bg-slate-50">
-        <div className="p-6">
+        <div className="p-4 flex items-center justify-end gap-3">
+          {authed && (
+            <div className="flex items-center gap-3">
+              <div className="px-3 py-1 rounded-full bg-slate-200 text-slate-800 text-xs font-medium">
+                {me?.email || 'logado'}
+              </div>
+              <button onClick={onLogout} className="text-xs px-3 py-1 rounded-lg bg-slate-800 text-white hover:bg-slate-700">Sair</button>
+            </div>
+          )}
+        </div>
+        <div className="p-6 pt-0">
           <ErrorBoundary>
             <Outlet />
           </ErrorBoundary>
