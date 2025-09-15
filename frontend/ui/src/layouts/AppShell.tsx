@@ -10,12 +10,10 @@ export default function AppShell() {
           <Link to="/">AtendeJá</Link>
         </div>
         <nav className="p-3 space-y-1 text-sm">
-          <Item to="/dashboard" label="Dashboard" />
-          <Item to="/orders" label="Pedidos" />
-          <Item to="/delivery" label="Entregas" />
-          <Item to="/menu" label="Cardápio" />
-          <Item to="/customers" label="Clientes" />
-          <Item to="/settings" label="Configurações" />
+          <div className="px-3 py-2 text-xs uppercase tracking-wide text-gray-400">Imobiliário</div>
+          <Item to="/imoveis" label="Imóveis" />
+          <Item to="/leads" label="Leads" />
+          <Item to="/ops" label="Ops" />
         </nav>
       </aside>
       <main className="flex-1 bg-gray-50">
