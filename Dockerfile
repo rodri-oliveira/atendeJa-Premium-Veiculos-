@@ -13,16 +13,20 @@ RUN curl -sSL https://install.python-poetry.org | python3 - \
 
 WORKDIR /app
 
-# Only copy dependency files first for better caching
+# Copia metadados do projeto (para cache de dependências mais eficiente)
 COPY pyproject.toml .
 RUN poetry config virtualenvs.create false \
     && poetry install --no-interaction --no-ansi
 
-# Now copy the application code
+# Copiar código da aplicação
+COPY alembic.ini ./
+COPY migrations ./migrations
 COPY app ./app
 COPY tests ./tests
+COPY start.sh ./start.sh
+RUN chmod +x ./start.sh
 
 EXPOSE 8000
 
-# Default command can be overridden in docker-compose
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Default command can be overridden em docker-compose
+CMD ["./start.sh"]

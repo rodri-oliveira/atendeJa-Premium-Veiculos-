@@ -324,16 +324,14 @@ def create_lead(payload: LeadCreate, db: Session = Depends(get_db)):
         preferencias=lead.preferences,
     )
 
-
 @router.get(
     "/leads",
     response_model=List[LeadOut],
     summary="Listar leads",
-    description="Lista leads cadastrados com paginação simples.",
+    description="Lista leads.",
 )
-def list_leads(db: Session = Depends(get_db), limit: int = 20, offset: int = 0):
-    stmt = select(Lead).limit(limit).offset(offset)
-    rows = db.execute(stmt).scalars().all()
+def list_leads(db: Session = Depends(get_db)):
+    rows = db.query(Lead).all()
     return [
         LeadOut(
             id=r.id,
@@ -345,6 +343,112 @@ def list_leads(db: Session = Depends(get_db), limit: int = 20, offset: int = 0):
         )
         for r in rows
     ]
+
+
+# --- Staging de Leads (MVP sem tabela dedicada) ---
+class LeadStagingIn(BaseModel):
+    external_lead_id: Optional[str] = None
+    source: Optional[str] = None
+    name: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    preferences: Optional[dict] = None
+    updated_at_source: Optional[str] = None  # ISO-8601 string
+
+
+class LeadStagingOut(BaseModel):
+    created: bool
+    updated: bool
+    lead: LeadOut
+
+
+@router.post(
+    "/leads/staging",
+    response_model=LeadStagingOut,
+    summary="Staging/Upsert de leads a partir de integra\u00E7\u00F5es (MVP)",
+    description=(
+        "Upsert de Lead utilizando phone/email como chaves principais.\n"
+        "Armazena external_lead_id e updated_at_source dentro de preferences para rastreabilidade."
+    ),
+)
+def upsert_lead_from_staging(payload: LeadStagingIn, db: Session = Depends(get_db)):
+    tenant_id = int(1) if settings.DEFAULT_TENANT_ID == "default" else 1
+    data = payload.model_dump(exclude_unset=True)
+
+    # Estratégia de deduplicação (MVP): phone > email
+    lead: Lead | None = None
+    if data.get("phone"):
+        lead = (
+            db.query(Lead)
+            .filter(Lead.tenant_id == tenant_id, Lead.phone == data["phone"])  # type: ignore
+            .first()
+        )
+    if not lead and data.get("email"):
+        lead = (
+            db.query(Lead)
+            .filter(Lead.tenant_id == tenant_id, Lead.email == data["email"])  # type: ignore
+            .first()
+        )
+
+    created = False
+    updated = False
+
+    if not lead:
+        # cria
+        lead = Lead(
+            tenant_id=tenant_id,
+            name=data.get("name"),
+            phone=data.get("phone"),
+            email=data.get("email"),
+            source=data.get("source"),
+            preferences=data.get("preferences") or {},
+            consent_lgpd=False,
+        )
+        # rastreabilidade da origem
+        prefs = dict(lead.preferences or {})
+        if data.get("external_lead_id"):
+            prefs["external_lead_id"] = data["external_lead_id"]
+        if data.get("updated_at_source"):
+            prefs["updated_at_source"] = data["updated_at_source"]
+        lead.preferences = prefs
+        db.add(lead)
+        db.commit()
+        db.refresh(lead)
+        created = True
+    else:
+        # update simples: atualiza campos se vierem preenchidos
+        before = lead.preferences or {}
+        lead.name = data.get("name") or lead.name
+        lead.phone = data.get("phone") or lead.phone
+        lead.email = data.get("email") or lead.email
+        lead.source = data.get("source") or lead.source
+        # merge de preferences
+        prefs = dict(before)
+        for k, v in (data.get("preferences") or {}).items():
+            prefs[k] = v
+        if data.get("external_lead_id"):
+            prefs["external_lead_id"] = data["external_lead_id"]
+        if data.get("updated_at_source"):
+            # se houver timestamp anterior, sobrescreve; regra detalhada pode ser adicionada depois
+            prefs["updated_at_source"] = data["updated_at_source"]
+        lead.preferences = prefs
+        db.add(lead)
+        db.commit()
+        db.refresh(lead)
+        updated = True
+
+    return LeadStagingOut(
+        created=created,
+        updated=updated,
+        lead=LeadOut(
+            id=lead.id,
+            nome=lead.name,
+            telefone=lead.phone,
+            email=lead.email,
+            origem=lead.source,
+            preferencias=lead.preferences,
+        ),
+    )
 
 
 # --- Imagens do imóvel ---

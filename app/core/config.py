@@ -16,6 +16,8 @@ class Settings(BaseSettings):
     WA_TOKEN: str = ""
     WA_PHONE_NUMBER_ID: str = ""
     WA_API_BASE: str = "https://graph.facebook.com/v20.0"
+    # Provider de mensageria: meta|twilio (usar 'meta' por padrão)
+    WA_PROVIDER: str = "meta"
     # Optional: HMAC secret to validate webhook signatures (X-Hub-Signature-256)
     WA_WEBHOOK_SECRET: str = ""
 
