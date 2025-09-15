@@ -54,73 +54,87 @@ export default function ImportCsv() {
   return (
     <section className="space-y-4">
       <header className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">Importar CSV de Imóveis</h1>
-        <div className="text-xs text-gray-500">Envie um arquivo .csv</div>
+        <h1 className="text-2xl font-bold text-slate-800">Importar CSV de Imóveis</h1>
+        <div className="text-sm text-slate-500">Envie um arquivo .csv</div>
       </header>
 
-      <form onSubmit={onSubmit} className="rounded-lg border border-gray-200 bg-white p-4 space-y-3">
-        <div className="flex items-center gap-3">
+      <form onSubmit={onSubmit} className="rounded-xl border border-slate-200 bg-white p-6 shadow-card space-y-4">
+        <div className="flex items-center gap-4">
           <input
             type="file"
             accept=".csv,text/csv"
             onChange={(e) => setFile(e.target.files?.[0] || null)}
-            className="text-sm"
+            className="text-sm file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100 transition-colors"
           />
           <button
             type="submit"
             disabled={loading || !file}
-            className="px-3 py-1.5 text-sm rounded bg-gray-900 text-white disabled:opacity-50"
+            className="px-6 py-2.5 text-sm font-medium rounded-lg bg-primary-600 text-white hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
           >
             {loading ? 'Enviando...' : 'Enviar'}
           </button>
         </div>
-        <div className="text-xs text-gray-500">
-          Dica: use o arquivo de exemplo disponível no repositório (import_sample.csv)
+        <div className="text-sm text-slate-500 bg-slate-50 rounded-lg p-3">
+          💡 <strong>Dica:</strong> use o arquivo de exemplo disponível no repositório (import_sample.csv)
         </div>
       </form>
 
       {error && (
-        <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded p-3">
-          Erro: {error}
+        <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-xl p-4">
+          ⚠️ <strong>Erro:</strong> {error}
         </div>
       )}
 
       {success && (
-        <div className="text-sm text-green-700 bg-green-50 border border-green-200 rounded p-3 flex items-center justify-between">
-          <span>Importação concluída com sucesso.</span>
-          <Link to="/imoveis" className="text-green-800 underline">Ver imóveis</Link>
+        <div className="text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-xl p-4 flex items-center justify-between">
+          <span>✓ Importação concluída com sucesso.</span>
+          <Link to="/imoveis" className="text-emerald-800 hover:text-emerald-900 font-medium transition-colors">
+            Ver imóveis →
+          </Link>
         </div>
       )}
 
       {result && (
-        <div className="rounded-lg border border-gray-200 bg-white p-4 space-y-2">
-          <h2 className="text-sm font-medium text-gray-900">Resultado</h2>
-          <dl className="text-sm text-gray-700 grid grid-cols-2 sm:grid-cols-4 gap-2">
+        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-card space-y-4">
+          <h2 className="text-lg font-semibold text-slate-900">Resultado da Importação</h2>
+          <dl className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             {'processed' in result && (
-              <div><span className="text-gray-500">Processados:</span> {String(result.processed)}</div>
+              <div className="bg-slate-50 rounded-lg p-3">
+                <dt className="text-sm font-medium text-slate-500">Processados</dt>
+                <dd className="text-xl font-bold text-slate-900">{String(result.processed)}</dd>
+              </div>
             )}
             {'inserted' in result && (
-              <div><span className="text-gray-500">Inseridos:</span> {String(result.inserted)}</div>
+              <div className="bg-emerald-50 rounded-lg p-3">
+                <dt className="text-sm font-medium text-emerald-600">Inseridos</dt>
+                <dd className="text-xl font-bold text-emerald-700">{String(result.inserted)}</dd>
+              </div>
             )}
             {'updated' in result && (
-              <div><span className="text-gray-500">Atualizados:</span> {String(result.updated)}</div>
+              <div className="bg-amber-50 rounded-lg p-3">
+                <dt className="text-sm font-medium text-amber-600">Atualizados</dt>
+                <dd className="text-xl font-bold text-amber-700">{String(result.updated)}</dd>
+              </div>
             )}
           </dl>
           {!!result.errors?.length && (
-            <div className="pt-2">
-              <h3 className="text-sm font-medium text-gray-900">Erros</h3>
-              <ul className="text-xs text-red-700 list-disc pl-5">
+            <div className="border-t border-slate-200 pt-4">
+              <h3 className="text-sm font-semibold text-slate-900 mb-2">Erros Encontrados</h3>
+              <ul className="text-sm text-red-700 space-y-1 bg-red-50 rounded-lg p-3">
                 {result.errors.map((er, idx) => (
-                  <li key={idx}>
-                    {er.line ? `Linha ${er.line}: ` : ''}{er.message}
+                  <li key={idx} className="flex items-start gap-2">
+                    <span className="text-red-500">•</span>
+                    <span>{er.line ? `Linha ${er.line}: ` : ''}{er.message}</span>
                   </li>
                 ))}
               </ul>
             </div>
           )}
-          <details className="pt-2">
-            <summary className="text-xs text-blue-700 cursor-pointer">Ver JSON completo</summary>
-            <pre className="text-xs bg-gray-50 border rounded p-2 whitespace-pre-wrap break-all">{JSON.stringify(result, null, 2)}</pre>
+          <details className="border-t border-slate-200 pt-4">
+            <summary className="text-sm text-primary-700 cursor-pointer hover:text-primary-800 font-medium transition-colors">
+              Ver JSON completo
+            </summary>
+            <pre className="text-xs bg-slate-50 border border-slate-200 rounded-lg p-3 whitespace-pre-wrap break-all mt-2 text-slate-700">{JSON.stringify(result, null, 2)}</pre>
           </details>
         </div>
       )}

@@ -60,88 +60,122 @@ export default function LeadsList() {
   return (
     <section className="space-y-4">
       <header className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <h1 className="text-xl font-semibold">Leads</h1>
+        <div className="flex items-center gap-4">
+          <h1 className="text-2xl font-bold text-slate-800">Leads</h1>
           {!loading && !error && (
-            <span className="inline-flex items-center px-2 py-0.5 text-xs rounded-full bg-gray-200 text-gray-800">
+            <span className="inline-flex items-center px-3 py-1 text-sm font-medium rounded-full bg-primary-100 text-primary-800">
               {(data?.length ?? 0) === 1 ? '1 resultado' : `${data?.length ?? 0} resultados`}
             </span>
           )}
         </div>
-        <div className="text-xs text-gray-500">Leads cadastrados</div>
+        <div className="text-sm text-slate-500">Leads cadastrados</div>
       </header>
-      {loading && <div className="text-sm text-gray-600">Carregando...</div>}
-      {error && <div className="text-sm text-red-600">Erro: {error}</div>}
+      {loading && (
+        <div className="overflow-auto rounded-xl border border-slate-200 bg-white shadow-card">
+          <table className="min-w-full">
+            <thead>
+              <tr className="bg-slate-50 border-b border-slate-200">
+                <th className="px-6 py-4 text-left text-sm font-semibold text-slate-700">ID</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-slate-700">Nome</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-slate-700">Telefone</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-slate-700">Email</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-slate-700">Origem</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-slate-700">Preferências</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-200">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <tr key={i}>
+                  <td className="px-6 py-4"><div className="h-4 skeleton rounded w-8"></div></td>
+                  <td className="px-6 py-4"><div className="h-4 skeleton rounded w-24"></div></td>
+                  <td className="px-6 py-4"><div className="h-4 skeleton rounded w-32"></div></td>
+                  <td className="px-6 py-4"><div className="h-4 skeleton rounded w-40"></div></td>
+                  <td className="px-6 py-4"><div className="h-4 skeleton rounded w-20"></div></td>
+                  <td className="px-6 py-4">
+                    <div className="flex gap-2">
+                      <div className="h-6 skeleton rounded-full w-16"></div>
+                      <div className="h-6 skeleton rounded-full w-20"></div>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {error && <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-4">Erro: {error}</div>}
       {!loading && !error && (
-        <div className="flex items-center justify-end text-xs text-gray-600">
-          <div className="flex items-center gap-2">
+        <div className="flex items-center justify-end">
+          <div className="flex items-center gap-3">
             <button
-              className="px-3 py-1.5 rounded border border-gray-300 bg-white disabled:opacity-50"
+              className="px-4 py-2 text-sm font-medium rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
               onClick={() => setOffset(Math.max(0, offset - limit))}
               disabled={offset === 0}
-            >Anterior</button>
-            <span>Página {Math.floor(offset / limit) + 1}</span>
+            >← Anterior</button>
+            <span className="px-3 py-1 bg-primary-100 text-primary-800 rounded-lg font-medium text-sm">
+              Página {Math.floor(offset / limit) + 1}
+            </span>
             <button
-              className="px-3 py-1.5 rounded border border-gray-300 bg-white disabled:opacity-50"
+              className="px-4 py-2 text-sm font-medium rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
               onClick={() => setOffset(offset + limit)}
               disabled={(data?.length ?? 0) < limit}
-            >Próxima</button>
+            >Próxima →</button>
           </div>
         </div>
       )}
       {!loading && !error && (
-        <div className="overflow-auto rounded-lg border border-gray-200 bg-white shadow-sm">
-          <table className="min-w-full text-sm">
+        <div className="overflow-auto rounded-xl border border-slate-200 bg-white shadow-card">
+          <table className="min-w-full">
             <thead>
-              <tr className="bg-gray-50 text-left text-gray-600">
-                <th className="px-3 py-2 font-medium">ID</th>
-                <th className="px-3 py-2 font-medium">Nome</th>
-                <th className="px-3 py-2 font-medium">Telefone</th>
-                <th className="px-3 py-2 font-medium">Email</th>
-                <th className="px-3 py-2 font-medium">Origem</th>
-                <th className="px-3 py-2 font-medium">Preferências</th>
+              <tr className="bg-slate-50 border-b border-slate-200">
+                <th className="px-6 py-4 text-left text-sm font-semibold text-slate-700">ID</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-slate-700">Nome</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-slate-700">Telefone</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-slate-700">Email</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-slate-700">Origem</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-slate-700">Preferências</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-slate-200">
               {(data ?? []).map((l, idx) => (
-                <tr key={l.id} className="border-t odd:bg-gray-50">
-                  <td className="px-3 py-2 text-gray-900">{l.id}</td>
-                  <td className="px-3 py-2">{l.nome || '-'}</td>
-                  <td className="px-3 py-2">{l.telefone || '-'}</td>
-                  <td className="px-3 py-2">{l.email || '-'}</td>
-                  <td className="px-3 py-2">{l.origem || '-'}</td>
-                  <td className="px-3 py-2 text-xs text-gray-700">
+                <tr key={l.id} className="hover:bg-slate-50 transition-colors duration-200 table-row">
+                  <td className="px-6 py-4 text-sm font-medium text-slate-900">{l.id}</td>
+                  <td className="px-6 py-4 text-sm text-slate-900">{l.nome || <span className="text-slate-400 italic">Não informado</span>}</td>
+                  <td className="px-6 py-4 text-sm text-slate-600">{l.telefone || <span className="text-slate-400 italic">Não informado</span>}</td>
+                  <td className="px-6 py-4 text-sm text-slate-600">{l.email || <span className="text-slate-400 italic">Não informado</span>}</td>
+                  <td className="px-6 py-4 text-sm text-slate-600">{l.origem || <span className="text-slate-400 italic">Não informado</span>}</td>
+                  <td className="px-6 py-4 text-sm">
                     {l.preferencias ? (
-                      <div className="space-y-1">
-                        <div className="flex flex-wrap gap-1">
+                      <div className="space-y-2">
+                        <div className="flex flex-wrap gap-2">
                           {l.preferencias.finalidade && (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
+                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">
                               {l.preferencias.finalidade === 'sale' ? 'Venda' : l.preferencias.finalidade === 'rent' ? 'Locação' : String(l.preferencias.finalidade)}
                             </span>
                           )}
                           {l.preferencias.cidade && (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-blue-100 text-blue-800">
+                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-primary-100 text-primary-800">
                               {l.preferencias.cidade}
                             </span>
                           )}
                           {l.preferencias.tipo && (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-gray-200 text-gray-800">
+                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-700">
                               {l.preferencias.tipo === 'apartment' ? 'Apartamento' : l.preferencias.tipo === 'house' ? 'Casa' : String(l.preferencias.tipo)}
                             </span>
                           )}
                         </div>
                         <button
-                          className="text-[11px] text-blue-700 underline"
+                          className="text-xs text-primary-600 hover:text-primary-700 font-medium transition-colors"
                           onClick={() => setExpanded((s) => ({ ...s, [l.id]: !s[l.id] }))}
                         >
                           {expanded[l.id] ? 'Ocultar JSON' : 'Ver JSON'}
                         </button>
                         {expanded[l.id] && (
-                          <pre className="max-w-xl whitespace-pre-wrap break-all bg-gray-50 border rounded p-2">{JSON.stringify(l.preferencias, null, 2)}</pre>
+                          <pre className="max-w-xl whitespace-pre-wrap break-all bg-slate-50 border border-slate-200 rounded-lg p-3 text-xs text-slate-700">{JSON.stringify(l.preferencias, null, 2)}</pre>
                         )}
                       </div>
                     ) : (
-                      '-'
+                      <span className="text-slate-400">-</span>
                     )}
                   </td>
                 </tr>
