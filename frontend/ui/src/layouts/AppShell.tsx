@@ -15,6 +15,7 @@ export default function AppShell() {
           <Item to="/import" label="Importar CSV" />
           <Item to="/leads" label="Leads" />
           <Item to="/ops" label="Ops" />
+          <Item to="/sobre" label="Sobre" />
         </nav>
       </aside>
       <main className="flex-1 bg-gray-50">

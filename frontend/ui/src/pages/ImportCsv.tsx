@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { Link } from 'react-router-dom'
 
 interface ImportResult {
   processed?: number
@@ -13,6 +14,7 @@ export default function ImportCsv() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<ImportResult | null>(null)
+  const [success, setSuccess] = useState(false)
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -40,8 +42,10 @@ export default function ImportCsv() {
       }
       const js = await res.json()
       setResult(js)
+      setSuccess(true)
     } catch (e: any) {
       setError(e?.message || 'Falha no upload')
+      setSuccess(false)
     } finally {
       setLoading(false)
     }
@@ -76,7 +80,16 @@ export default function ImportCsv() {
       </form>
 
       {error && (
-        <div className="text-sm text-red-600">Erro: {error}</div>
+        <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded p-3">
+          Erro: {error}
+        </div>
+      )}
+
+      {success && (
+        <div className="text-sm text-green-700 bg-green-50 border border-green-200 rounded p-3 flex items-center justify-between">
+          <span>Importação concluída com sucesso.</span>
+          <Link to="/imoveis" className="text-green-800 underline">Ver imóveis</Link>
+        </div>
       )}
 
       {result && (

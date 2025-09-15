@@ -41,6 +41,51 @@ export default function ImoveisList() {
     setOffset(0)
   }
 
+  // Ler filtros do querystring ao montar
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const f = params.get('finalidade') || ''
+    const t = params.get('tipo') || ''
+    const c = params.get('cidade') || ''
+    const e = params.get('estado') || ''
+    const pmin = params.get('preco_min') || ''
+    const pmax = params.get('preco_max') || ''
+    const dmin = params.get('dormitorios_min') || ''
+    const off = params.get('offset') || '0'
+    if (f) setFinalidade(f)
+    if (t) setTipo(t)
+    if (c) setCidade(c)
+    if (e) setEstado(e)
+    if (pmin) setPrecoMin(pmin)
+    if (pmax) setPrecoMax(pmax)
+    if (dmin) setDormMin(dmin)
+    if (off) setOffset(Number(off) || 0)
+  }, [])
+
+  // Atualizar querystring quando filtros/offset mudarem
+  useEffect(() => {
+    const params = new URLSearchParams()
+    if (finalidade) params.set('finalidade', finalidade)
+    if (tipo) params.set('tipo', tipo)
+    if (cidade) params.set('cidade', cidade)
+    if (estado) params.set('estado', estado)
+    if (precoMin) params.set('preco_min', precoMin)
+    if (precoMax) params.set('preco_max', precoMax)
+    if (dormMin) params.set('dormitorios_min', dormMin)
+    if (offset) params.set('offset', String(offset))
+    const qs = params.toString()
+    const newUrl = `${window.location.pathname}${qs ? `?${qs}` : ''}`
+    if (newUrl !== window.location.pathname + window.location.search) {
+      window.history.replaceState({}, '', newUrl)
+    }
+  }, [finalidade, tipo, cidade, estado, precoMin, precoMax, dormMin, offset])
+
+  // Resetar offset ao mudar qualquer filtro
+  useEffect(() => {
+    setOffset(0)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [finalidade, tipo, cidade, estado, precoMin, precoMax, dormMin])
+
   const queryString = useMemo(() => {
     const params = new URLSearchParams()
     if (finalidade) params.set('finalidade', finalidade)
@@ -80,14 +125,21 @@ export default function ImoveisList() {
     <section className="space-y-4">
       <header className="space-y-3">
         <div className="flex items-center justify-between">
-          <h1 className="text-xl font-semibold">Imóveis</h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-xl font-semibold">Imóveis</h1>
+            {!loading && !error && (
+              <span className="inline-flex items-center px-2 py-0.5 text-xs rounded-full bg-gray-200 text-gray-800">
+                {(data?.length ?? 0) === 1 ? '1 resultado' : `${data?.length ?? 0} resultados`}
+              </span>
+            )}
+          </div>
           <div className="text-xs text-gray-500">Lista dos imóveis ativos</div>
         </div>
         <div className="rounded-lg border border-gray-200 bg-white p-3">
           <form className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 items-end" onSubmit={(e) => e.preventDefault()}>
             <div>
               <label className="block text-xs text-gray-600 mb-1">Finalidade</label>
-              <select value={finalidade} onChange={e => setFinalidade(e.target.value)} className="w-full rounded border-gray-300 text-sm">
+              <select value={finalidade} onChange={e => setFinalidade(e.target.value)} className="w-full rounded border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300">
                 <option value="">Todas</option>
                 <option value="sale">Venda</option>
                 <option value="rent">Locação</option>
@@ -95,7 +147,7 @@ export default function ImoveisList() {
             </div>
             <div>
               <label className="block text-xs text-gray-600 mb-1">Tipo</label>
-              <select value={tipo} onChange={e => setTipo(e.target.value)} className="w-full rounded border-gray-300 text-sm">
+              <select value={tipo} onChange={e => setTipo(e.target.value)} className="w-full rounded border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300">
                 <option value="">Todos</option>
                 <option value="apartment">Apartamento</option>
                 <option value="house">Casa</option>
@@ -103,23 +155,23 @@ export default function ImoveisList() {
             </div>
             <div>
               <label className="block text-xs text-gray-600 mb-1">Cidade</label>
-              <input value={cidade} onChange={e => setCidade(e.target.value)} className="w-full rounded border-gray-300 text-sm" placeholder="Ex.: São Paulo" />
+              <input value={cidade} onChange={e => setCidade(e.target.value)} className="w-full rounded border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300" placeholder="Ex.: São Paulo" />
             </div>
             <div>
               <label className="block text-xs text-gray-600 mb-1">Estado (UF)</label>
-              <input value={estado} onChange={e => setEstado(e.target.value.toUpperCase())} className="w-full rounded border-gray-300 text-sm" placeholder="SP" maxLength={2} />
+              <input value={estado} onChange={e => setEstado(e.target.value.toUpperCase())} className="w-full rounded border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300" placeholder="SP" maxLength={2} />
             </div>
             <div>
               <label className="block text-xs text-gray-600 mb-1">Preço mín.</label>
-              <input type="number" value={precoMin} onChange={e => setPrecoMin(e.target.value)} className="w-full rounded border-gray-300 text-sm" placeholder="0" />
+              <input type="number" value={precoMin} onChange={e => setPrecoMin(e.target.value)} className="w-full rounded border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300" placeholder="0" />
             </div>
             <div>
               <label className="block text-xs text-gray-600 mb-1">Preço máx.</label>
-              <input type="number" value={precoMax} onChange={e => setPrecoMax(e.target.value)} className="w-full rounded border-gray-300 text-sm" placeholder="" />
+              <input type="number" value={precoMax} onChange={e => setPrecoMax(e.target.value)} className="w-full rounded border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300" placeholder="" />
             </div>
             <div>
               <label className="block text-xs text-gray-600 mb-1">Dormitórios mín.</label>
-              <input type="number" value={dormMin} onChange={e => setDormMin(e.target.value)} className="w-full rounded border-gray-300 text-sm" placeholder="" />
+              <input type="number" value={dormMin} onChange={e => setDormMin(e.target.value)} className="w-full rounded border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300" placeholder="" />
             </div>
             <div className="lg:col-span-4" />
             <div className="flex justify-end">
@@ -139,20 +191,17 @@ export default function ImoveisList() {
       )}
       {error && <div className="text-sm text-red-600">Erro: {error}</div>}
       {!loading && !error && (data?.length ?? 0) === 0 && (
-        <div className="text-sm text-gray-600">Nenhum imóvel encontrado com os filtros atuais.</div>
+        <div className="text-sm text-gray-600">Nenhum imóvel encontrado com os filtros atuais. Ajuste os filtros acima e tente novamente.</div>
       )}
       {!loading && !error && (
-        <div className="flex items-center justify-between text-xs text-gray-600">
-          <div>{(data?.length ?? 0)} resultados</div>
-          <div>
-            Página {Math.floor(offset / limit) + 1}
-          </div>
+        <div className="flex items-center justify-end text-xs text-gray-600">
+          <div>Página {Math.floor(offset / limit) + 1}</div>
         </div>
       )}
       {!loading && !error && (data?.length ?? 0) > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {(data ?? []).map((p) => (
-            <article key={p.id} className="rounded-lg border border-gray-200 bg-white shadow-sm hover:shadow transition">
+            <article key={p.id} className="rounded-lg border border-gray-200 bg-white shadow-sm hover:shadow-md transition-shadow duration-150">
               <div className="p-4 space-y-2">
                 <div className="flex items-center justify-between">
                   <h2 className="text-sm font-medium text-gray-900">{p.titulo}</h2>
@@ -168,7 +217,7 @@ export default function ImoveisList() {
                   <div className="text-xs text-gray-500">Dormitórios: {p.dormitorios}</div>
                 )}
                 <div className="pt-2">
-                  <Link to={`/imoveis/${p.id}`} className="inline-flex items-center px-3 py-1.5 text-sm rounded bg-gray-900 text-white hover:bg-gray-800">
+                  <Link to={`/imoveis/${p.id}`} className="inline-flex items-center px-3 py-1.5 text-sm rounded bg-gray-900 text-white hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-300 transition-colors">
                     Detalhes
                   </Link>
                 </div>

@@ -6,6 +6,7 @@ import ImovelDetalhes from './pages/ImovelDetalhes'
 import LeadsList from './pages/LeadsList'
 import OpsDashboard from './pages/OpsDashboard'
 import ImportCsv from './pages/ImportCsv'
+import About from './pages/About'
 
 export default function App() {
   return (
@@ -19,6 +20,7 @@ export default function App() {
           <Route path="import" element={<ImportCsv />} />
           <Route path="leads" element={<LeadsList />} />
           <Route path="ops" element={<OpsDashboard />} />
+          <Route path="sobre" element={<About />} />
           <Route path="*" element={<Navigate to="/imoveis" replace />} />
         </Route>
       </Routes>

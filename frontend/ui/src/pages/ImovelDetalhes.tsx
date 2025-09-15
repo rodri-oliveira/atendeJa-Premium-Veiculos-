@@ -57,8 +57,14 @@ export default function ImovelDetalhes() {
   return (
     <section className="space-y-4">
       <header className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">Detalhes do Imóvel</h1>
-        <Link to="/imoveis" className="text-sm text-blue-700 underline">Voltar</Link>
+        <div className="flex items-center gap-2 text-sm text-gray-600">
+          <Link to="/imoveis" className="inline-flex items-center gap-1 text-blue-700 hover:underline focus:outline-none focus:ring-2 focus:ring-blue-300 rounded px-1">
+            <span aria-hidden>←</span>
+            <span>Voltar</span>
+          </Link>
+          <span className="text-gray-400">/</span>
+          <span className="text-gray-800 font-medium">Detalhes do Imóvel</span>
+        </div>
       </header>
       {loading && <div className="text-sm text-gray-600">Carregando...</div>}
       {error && <div className="text-sm text-red-600">Erro: {error}</div>}
@@ -67,7 +73,7 @@ export default function ImovelDetalhes() {
           <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
             <div className="flex flex-col gap-2">
               <div className="flex items-center justify-between">
-                <h2 className="text-lg font-medium text-gray-900">{data.titulo}</h2>
+                <h2 className="text-xl font-semibold text-gray-900">{data.titulo}</h2>
                 <span className="text-[11px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-700">
                   {data.tipo === 'apartment' ? 'Apartamento' : data.tipo === 'house' ? 'Casa' : data.tipo}
                 </span>
@@ -89,10 +95,10 @@ export default function ImovelDetalhes() {
           </div>
           {!!data.imagens?.length && (
             <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-              <h3 className="text-sm font-medium text-gray-900 mb-2">Imagens</h3>
+              <h3 className="text-sm font-medium text-gray-900 mb-2">Galeria de imagens</h3>
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
                 {data.imagens.map((img) => (
-                  <div key={img.id} className="aspect-video overflow-hidden rounded border">
+                  <div key={img.id} className="aspect-[4/3] overflow-hidden rounded border">
                     <img src={img.url} alt={`Imagem ${img.id}`} className="w-full h-full object-cover" />
                   </div>
                 ))}
