@@ -80,11 +80,11 @@ export default function Reports() {
         <div className="text-sm text-slate-500">Indicadores operacionais e de marketing</div>
       </header>
 
-      <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm grid grid-cols-1 md:grid-cols-4 gap-3">
+      <div className="card grid grid-cols-1 md:grid-cols-4 gap-3">
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-1">Período</label>
           <select
-            className="w-full rounded-lg border-slate-300 text-sm"
+            className="select"
             value={periodMonths}
             onChange={e => setPeriodMonths(Number(e.target.value))}
           >
@@ -95,7 +95,7 @@ export default function Reports() {
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-1">Canal</label>
           <select
-            className="w-full rounded-lg border-slate-300 text-sm"
+            className="select"
             value={channel}
             onChange={e => setChannel(e.target.value)}
           >
@@ -107,7 +107,7 @@ export default function Reports() {
           <label className="block text-sm font-medium text-slate-700 mb-1">Data inicial</label>
           <input
             type="date"
-            className="w-full rounded-lg border-slate-300 text-sm"
+            className="input"
             value={startDate}
             onChange={e => setStartDate(e.target.value)}
             max={endDate || undefined}
@@ -117,7 +117,7 @@ export default function Reports() {
           <label className="block text-sm font-medium text-slate-700 mb-1">Data final</label>
           <input
             type="date"
-            className="w-full rounded-lg border-slate-300 text-sm"
+            className="input"
             value={endDate}
             onChange={e => setEndDate(e.target.value)}
             min={startDate || undefined}
@@ -127,7 +127,7 @@ export default function Reports() {
           <button
             onClick={() => { setStartDate(''); setEndDate(''); }}
             disabled={loading || (!startDate && !endDate)}
-            className="px-3 py-2 text-sm font-medium rounded-lg bg-slate-200 text-slate-800 hover:bg-slate-300 disabled:opacity-50"
+            className="btn btn-ghost disabled:opacity-50"
           >
             Limpar datas
           </button>
@@ -142,18 +142,18 @@ export default function Reports() {
 
       {!loading && !error && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-          <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-            <div className="text-sm font-medium text-slate-700 mb-2">Leads por mês</div>
+          <div className="card p-4">
+            <div className="card-header">Leads por mês</div>
             <ReactECharts option={leadsOption} style={{ height: 280 }} notMerge={true} lazyUpdate={true} />
           </div>
 
-          <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-            <div className="text-sm font-medium text-slate-700 mb-2">Conversas WhatsApp</div>
+          <div className="card p-4">
+            <div className="card-header">Conversas WhatsApp</div>
             <ReactECharts option={whatsOption} style={{ height: 280 }} notMerge={true} lazyUpdate={true} />
           </div>
 
-          <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm lg:col-span-2">
-            <div className="text-sm font-medium text-slate-700 mb-2">Taxa de conversão (%)</div>
+          <div className="card p-4 lg:col-span-2">
+            <div className="card-header">Taxa de conversão (%)</div>
             <ReactECharts option={convOption} style={{ height: 320 }} notMerge={true} lazyUpdate={true} />
           </div>
         </div>

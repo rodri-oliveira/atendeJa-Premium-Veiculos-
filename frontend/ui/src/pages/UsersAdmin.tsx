@@ -114,39 +114,39 @@ export default function UsersAdmin() {
         <div className="text-sm text-slate-500">Gestão de usuários e perfis</div>
       </header>
 
-      <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm space-y-4">
+      <div className="card space-y-4">
         <form onSubmit={onCreate} className="grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">Email</label>
-            <input className="w-full rounded-lg border-slate-300 text-sm" type="email" value={email} onChange={e => setEmail(e.target.value)} required />
+            <input className="input" type="email" value={email} onChange={e => setEmail(e.target.value)} required />
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">Senha</label>
-            <input className="w-full rounded-lg border-slate-300 text-sm" type="password" value={password} onChange={e => setPassword(e.target.value)} required />
+            <input className="input" type="password" value={password} onChange={e => setPassword(e.target.value)} required />
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">Nome</label>
-            <input className="w-full rounded-lg border-slate-300 text-sm" type="text" value={fullName} onChange={e => setFullName(e.target.value)} />
+            <input className="input" type="text" value={fullName} onChange={e => setFullName(e.target.value)} />
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">Papel</label>
-            <select className="w-full rounded-lg border-slate-300 text-sm" value={role} onChange={e => setRole(e.target.value as Role)}>
+            <select className="select" value={role} onChange={e => setRole(e.target.value as Role)}>
               <option value="collaborator">Colaborador</option>
               <option value="admin">Admin</option>
             </select>
           </div>
           <div className="flex items-center gap-2">
-            <button disabled={creating} className="px-4 py-2 text-sm font-medium rounded-lg bg-primary-600 text-white hover:bg-primary-700">{creating ? 'Criando...' : 'Criar'}</button>
-            <Link className="text-sm text-slate-600 underline" to="/imoveis">Voltar</Link>
+            <button disabled={creating} className="btn btn-primary">{creating ? 'Criando...' : 'Criar'}</button>
+            <Link className="text-sm text-slate-600 underline hover:text-slate-800" to="/imoveis">Voltar</Link>
           </div>
         </form>
       </div>
 
-      <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm space-y-4">
+      <div className="card space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">Filtrar papel</label>
-            <select className="w-full rounded-lg border-slate-300 text-sm" value={filterRole} onChange={e => setFilterRole(e.target.value)}>
+            <select className="select" value={filterRole} onChange={e => setFilterRole(e.target.value)}>
               <option value="">Todos</option>
               <option value="admin">Admin</option>
               <option value="collaborator">Colaborador</option>
@@ -154,7 +154,7 @@ export default function UsersAdmin() {
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">Ativo</label>
-            <select className="w-full rounded-lg border-slate-300 text-sm" value={filterActive} onChange={e => setFilterActive(e.target.value)}>
+            <select className="select" value={filterActive} onChange={e => setFilterActive(e.target.value)}>
               <option value="">Todos</option>
               <option value="true">Ativos</option>
               <option value="false">Inativos</option>
@@ -167,7 +167,7 @@ export default function UsersAdmin() {
 
         {!loading && !error && (
           <div className="overflow-x-auto">
-            <table className="min-w-full text-sm">
+            <table className="table min-w-full text-sm">
               <thead>
                 <tr className="text-left text-slate-600">
                   <th className="py-2 pr-3">ID</th>
@@ -180,17 +180,17 @@ export default function UsersAdmin() {
               </thead>
               <tbody>
                 {list.map(u => (
-                  <tr key={u.id} className="border-t border-slate-200">
+                  <tr key={u.id} className="table-row">
                     <td className="py-2 pr-3">{u.id}</td>
                     <td className="py-2 pr-3">{u.email}</td>
                     <td className="py-2 pr-3">{u.full_name || '-'}</td>
                     <td className="py-2 pr-3">
-                      <span className={`px-2 py-1 rounded text-xs font-medium ${u.role === 'admin' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-800'}`}>{u.role}</span>
+                      <span className={`badge ${u.role === 'admin' ? 'badge-success' : 'badge-neutral'}`}>{u.role}</span>
                     </td>
                     <td className="py-2 pr-3">{u.is_active ? 'Sim' : 'Não'}</td>
                     <td className="py-2 pr-3 flex gap-2">
-                      <button onClick={() => onPromote(u)} className="px-3 py-1 rounded bg-indigo-600 text-white">{u.role === 'admin' ? 'Rebaixar' : 'Promover'}</button>
-                      <button onClick={() => onToggleActive(u)} className={`px-3 py-1 rounded ${u.is_active ? 'bg-amber-600 text-white' : 'bg-emerald-600 text-white'}`}>{u.is_active ? 'Desativar' : 'Ativar'}</button>
+                      <button onClick={() => onPromote(u)} className="btn btn-primary">{u.role === 'admin' ? 'Rebaixar' : 'Promover'}</button>
+                      <button onClick={() => onToggleActive(u)} className={`btn ${u.is_active ? 'btn-warning' : 'btn-success'}`}>{u.is_active ? 'Desativar' : 'Ativar'}</button>
                     </td>
                   </tr>
                 ))}

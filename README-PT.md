@@ -56,16 +56,12 @@ npm run dev   # http://localhost:5173
 - `POST /admin/re/imoveis/import-csv`
 - `GET /metrics/overview?period_months=6|12&channel=whatsapp|all&start_date=YYYY-MM-DD&end_date=YYYY-MM-DD`
 
-## Screenshots (adicione suas imagens)
-Coloque imagens em `docs/screenshots/` e referencie aqui:
-- Login: `docs/screenshots/login.png`
-- Importar CSV: `docs/screenshots/import.csv.png`
-- Relatórios: `docs/screenshots/reports.png`
-
-Exemplo de uso no Markdown:
-```md
-![Relatórios](docs/screenshots/reports.png)
-```
+## Screenshots
+![Login](docs/screenshots/login.png)
+![Usuários](docs/screenshots/admim-user.png)
+![Importar CSV](docs/screenshots/importacao-csv.png)
+![Relatórios](docs/screenshots/relatorios.png)
+![Imóveis](docs/screenshots/imoveis.png)
 
 ## Diferenciais técnicos
 - Camada de provider para mensageria (permite trocar Twilio/Meta com baixo impacto).
