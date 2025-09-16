@@ -95,4 +95,4 @@ npm run dev
 - Observabilidade: métricas de app e traces leves.
 
 ## Licença
-MIT
+MIT/
