@@ -1,81 +1,98 @@
-# AtendeJá Chatbot
+# AtendeJá – Chatbot, Operações e Relatórios
 
-Chatbot WhatsApp profissional (Brasil) com FastAPI, Celery, Redis e PostgreSQL. Foco em atendimento robusto (v1) e marketing (v1.1), com arquitetura modular, documentação, testes e implantação via Docker.
+> Vitrine técnica de um produto real com backend FastAPI + frontend React (Vite/TS), autenticação JWT, administração, importação de dados e dashboards. Código limpo, testes, logs estruturados e documentação.
 
-## Principais recursos
-- FastAPI com Swagger (OpenAPI) e endpoints de saúde (`/health/live`, `/health/ready`).
-- Webhook do WhatsApp Cloud API (verificação e recepção).
-- Filas com Celery + Redis; workers com retries e base para DLQ.
-- PostgreSQL com SQLAlchemy + Alembic (migrations).
-- Logs estruturados (JSON) via `structlog`.
-- Deploy simples via `docker compose` (API, Worker, Redis, Postgres, Adminer). Perfil opcional: Metabase.
+## Destaques
+- Autenticação JWT (login/logout) e gestão de usuários (admin/colaborador).
+- Importação de imóveis via CSV com feedback na UI.
+- Relatórios com ECharts (filtros por período/data/canal) servidos por endpoint dedicado de métricas.
+- Webhooks e integrações de mensageria preparados (WhatsApp Cloud API / BSP) com camadas desacopladas.
+- Qualidade: testes (pytest/vitest), logs estruturados (`structlog`), documentação e estilo git.
 
-## Requisitos
-- Docker e Docker Compose
-- (Opcional para dev local) Python 3.11 + Poetry
+## Arquitetura e Stack
+- Backend (`app/`):
+  - FastAPI (Python 3.11), `uvicorn`, `pydantic`.
+  - Autenticação JWT, autorização básica e seed de admin.
+  - SQLAlchemy + Alembic (migrations) – atualmente usando SQLite local para dev; compatível com Postgres (ex.: Supabase).
+  - Logs estruturados com `structlog` e middlewares de tracing leve.
+  - Endpoints: saúde (`/health`), operações (`/ops`), domínio imobiliário (`/re`), admin (`/admin`), auth (`/auth`), métricas (`/metrics`).
 
-## Configuração
-1) Copie `.env.example` para `.env` e ajuste:
+- Frontend (`frontend/ui/`):
+  - React 18 + Vite + TypeScript + Tailwind.
+  - React Router 6, Auth util (`apiFetch` injeta Authorization).
+  - Páginas: Login, Imóveis, Importar CSV, Relatórios (ECharts), Usuários (admin).
+
+- Observabilidade e Operação:
+  - Logs em JSON e padronização de erros.
+  - Estrutura preparada para deploy em Render/Netlify (frontend) e Render/EC2 (backend).
+
+## Funcionalidades Implementadas
+- Autenticação e Autorização
+  - Login JWT (`/auth/login`), `apiFetch` no front, guard de rotas (`RequireAuth`).
+  - Página de usuários: criar/ativar/desativar/promover.
+
+- Importação CSV (ND Imóveis)
+  - Upload autenticado no frontend para `/admin/re/imoveis/import-csv` com mensagens de sucesso/erro.
+
+- Relatórios (Dashboards)
+  - Página `Reports` com 3 gráficos: Leads por mês, Conversas WhatsApp, Taxa de conversão.
+  - Filtros rápidos (6/12 meses) e por data (`start_date`/`end_date`) e canal.
+  - Backend `GET /metrics/overview` servindo dados (stub sintético pronto para ligar no banco).
+
+- Integrações de Mensageria (preparadas)
+  - Webhook base em `/webhook` (Meta Cloud API).
+  - Camada de provider desacoplada para trocar Twilio/Meta com baixo impacto.
+
+## Como rodar (dev)
+
+### Backend
+Pré-requisitos: Python 3.11 e `pip`.
+
 ```
-cp .env.example .env
-```
-Campos mínimos para testes com número de teste do WhatsApp (sem custo):
-- `WA_VERIFY_TOKEN` (valor que você vai configurar no Meta para verificar o webhook)
-- `WA_TOKEN` (token temporário do app do Meta)
-- `WA_PHONE_NUMBER_ID` (ID do número de teste)
-
-2) Suba os serviços (primeira vez pode demorar um pouco):
-```
-docker compose up -d --build
-```
-A API ficará em http://localhost:8000. Swagger: http://localhost:8000/docs
-
-Adminer (Postgres GUI): http://localhost:8080
-- System: PostgreSQL
-- Server: postgres
-- Username: atendeja
-- Password: atendeja
-- Database: atendeja
-
-Metabase (opcional – perfil `dashboards`):
-```
-docker compose --profile dashboards up -d
-```
-Acesse http://localhost:3000 (configure um usuário e conecte ao Postgres: host `postgres`, db `atendeja`, user `atendeja`, pass `atendeja`).
-
-## Webhook do WhatsApp Cloud API (teste grátis)
-1) No Meta for Developers, crie um app e habilite o WhatsApp Cloud API.
-2) Cadastre um Webhook apontando para:
-- Verify URL: `http://<SEU_HOST>/webhook`
-- Verify Token: o mesmo valor do `WA_VERIFY_TOKEN` do seu `.env`
-Com ngrok ou Cloudflare Tunnel, exponha `http://localhost:8000` publicamente se estiver em dev.
-
-3) Envio de mensagem de teste (número de teste):
-- Use o painel do Meta para enviar ao seu número cadastrado como tester.
-- Em breve aqui haverá um endpoint admin para enviar mensagens diretamente pela nossa API.
-
-## Scripts (opcionais)
-- Windows PowerShell: `infra/scripts/win/*.ps1` (start/stop/logs/backup/restore)
-- Linux/macOS: `infra/scripts/nix/*.sh`
-
-## Desenvolvimento local (opcional, sem Docker)
-```
-poetry install
-uvicorn app.main:app --reload
-celery -A app.workers.celery_app.celery worker --loglevel=INFO
+# Windows (PowerShell)
+$env:DATABASE_URL_OVERRIDE="sqlite:///./dev_auth.db"
+.\.venv\Scripts\python.exe -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000 --reload-dir app --reload-dir tests
 ```
 
-## Documentação
-- `ARCHITECTURE.md` – visão de componentes, fluxo inbound/outbound, filas, dados.
-- `OPERATIONS.md` – como operar: start/stop/logs, backup/restore, atualização.
-- `TESTING.md` – como rodar testes unitários e de integração.
-- `SECURITY.md` – webhook verification, tokens, rate limiting.
-- `CONTRIBUTING.md`, `STYLEGUIDE.md` – boas práticas de código e commits.
-- `ROADMAP.md` – versões e entregas planejadas.
+Swagger/OpenAPI: http://localhost:8000/docs
 
-## Roadmap (resumo)
-- v1 Atendimento: webhook oficial, state machine, envio com retries, persistência, testes e observabilidade.
-- v1.1 Marketing: campanhas com opt-in, throttling, janela/agenda, métricas e Metabase.
+### Frontend
+Pré-requisitos: Node 18+.
+
+```
+cd frontend/ui
+npm install
+npm run dev
+# http://localhost:5173
+```
+
+### Testes
+- Backend: `pytest -q`
+- Frontend: `npm test` (vitest)
+
+## Endpoints Principais (amostra)
+- `GET /health` – liveness/readiness simples.
+- `POST /auth/login` – autenticação JWT.
+- `GET /auth/me` – dados do usuário logado.
+- `POST /admin/re/imoveis/import-csv` – upload de CSV autenticado.
+- `GET /metrics/overview?period_months=6|12&channel=whatsapp|all&start_date=YYYY-MM-DD&end_date=YYYY-MM-DD` – dados para dashboards.
+
+## Qualidade e Boas Práticas
+- Logs estruturados (`structlog`), middleware de acesso HTTP e erros padronizados.
+- Configurações via `app/core/config.py` e variáveis de ambiente.
+- Testes automatizados (backend e frontend) e fixtures em `tests/`.
+- Estilo de commits e PRs coerentes. CI para frontend em `.github/workflows/frontend-ci.yml`.
+
+## Documentação de Arquitetura
+- `docs/ARCHITECTURE.md` – visão geral, componentes e escolhas técnicas.
+- `docs/ARCHITECTURE-CHOICES.md` – trade-offs.
+- `docs/SECURITY.md`, `docs/TESTING.md`, `docs/OPERATIONS.md` – guias práticos.
+
+## Roadmap curto
+- Conectar `GET /metrics/overview` ao banco (agregações reais).
+- Webchat (canal sem custo por mensagem) com MCP + agente OpenAI.
+- RBAC por papéis nas páginas (relatórios/admin) e auditoria básica.
+- Observabilidade: métricas de app e traces leves.
 
 ## Licença
 MIT
