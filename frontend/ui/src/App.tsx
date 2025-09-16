@@ -10,6 +10,7 @@ import About from './pages/About'
 import Login from './pages/Login'
 import UsersAdmin from './pages/UsersAdmin'
 import RequireAuth from './components/RequireAuth'
+import Reports from './pages/Reports'
 
 export default function App() {
   return (
@@ -23,6 +24,7 @@ export default function App() {
           <Route path="import" element={<RequireAuth><ImportCsv /></RequireAuth>} />
           <Route path="leads" element={<LeadsList />} />
           <Route path="ops" element={<OpsDashboard />} />
+          <Route path="reports" element={<RequireAuth><Reports /></RequireAuth>} />
           <Route path="users" element={<RequireAuth><UsersAdmin /></RequireAuth>} />
           <Route path="sobre" element={<About />} />
           <Route path="*" element={<Navigate to="/imoveis" replace />} />

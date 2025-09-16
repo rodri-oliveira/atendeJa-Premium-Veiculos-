@@ -54,6 +54,7 @@ export default function AppShell() {
           <Item to="/import" label="Importar CSV" />
           <Item to="/leads" label="Leads" />
           <Item to="/ops" label="Operações" />
+          <Item to="/reports" label="Relatórios" />
           {authed && (
             <>
               <NavLink

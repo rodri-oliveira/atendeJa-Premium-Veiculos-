@@ -40,3 +40,6 @@ frontend/ui/.env.*
 # OS/Editor
 .DS_Store
 Thumbs.db
+
+# Documentos do cliente (não versionar)
+cliente/
