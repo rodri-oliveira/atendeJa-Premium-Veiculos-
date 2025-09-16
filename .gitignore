@@ -43,3 +43,7 @@ Thumbs.db
 
 # Documentos do cliente (não versionar)
 cliente/
+
+# Documentação interna (não publicar)
+docs/interno/
+docs/internal/
