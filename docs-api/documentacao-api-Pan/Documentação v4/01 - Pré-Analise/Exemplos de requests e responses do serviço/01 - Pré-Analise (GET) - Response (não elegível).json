@@ -1,0 +1,35 @@
+{
+    "camposRequeridos": [
+        {
+            "campo": "CPF",
+            "requerido": true
+        },
+        {
+            "campo": "Data de Nascimento",
+            "requerido": false
+        },
+        {
+            "campo": "DDD/Celular",
+            "requerido": true
+        },
+        {
+            "campo": "Ocupação (deverá apresentar o código)",
+            "requerido": false
+        },
+        {
+            "campo": "Renda (mês)",
+            "requerido": false
+        },
+        {
+            "campo": "Renda Complementar (mês)",
+            "requerido": false
+        }
+    ],
+    "descricaoPA": "Infelizmente seu cliente não se encaixa em nossas políticas de financiamento.",
+    "codigo": 4,
+    "descricao": "Não Elegivel"
+}
+
+// true = CLIENTE NAO ELEGÍVEL NÃO PROSSEGUIR COM SIMULAÇÃO
+// false = CLIENTE NAO ELEGÍVEL NÃO PROSSEGUIR COM SIMULAÇÃO
+	

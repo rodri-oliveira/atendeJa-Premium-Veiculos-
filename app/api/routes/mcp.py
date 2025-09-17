@@ -5,15 +5,11 @@ from sqlalchemy.orm import Session
 from sqlalchemy import select
 from app.repositories.db import SessionLocal
 from app.core.config import settings
-from app.domain.realestate.models import (
-    Property,
-    PropertyImage,
-    PropertyType,
-    PropertyPurpose,
-    Lead,
-)
+from app.integrations.pan import PanService
+import structlog
 
 router = APIRouter()
+log = structlog.get_logger()
 
 
 # --- Dep ---
@@ -97,89 +93,106 @@ def _check_auth(authorization: Optional[str]):
         raise HTTPException(status_code=401, detail="invalid_token")
 
 
-# --- Tools ---
+"""
+Tools do domínio de imóveis ficam opcionais e só são registradas quando
+REAL_ESTATE_ENABLED=true, evitando confusão no POC de veículos.
+"""
+def _build_realestate_tools():
+    if not settings.REAL_ESTATE_ENABLED:
+        return {}
+    from app.domain.realestate.models import (
+        Property,
+        PropertyImage,
+        PropertyType,
+        PropertyPurpose,
+        Lead,
+    )
 
-def t_buscar_imoveis(db: Session, params: Dict[str, Any]) -> List[Dict[str, Any]]:
-    stmt = select(Property).where(Property.is_active == True)  # noqa: E712
-    m = params or {}
-    if m.get("finalidade"):
-        stmt = stmt.where(Property.purpose == PropertyPurpose(m["finalidade"]))
-    if m.get("tipo"):
-        stmt = stmt.where(Property.type == PropertyType(m["tipo"]))
-    if m.get("cidade"):
-        stmt = stmt.where(Property.address_city.ilike(m["cidade"]))
-    if m.get("estado"):
-        stmt = stmt.where(Property.address_state == m["estado"]) 
-    if m.get("preco_min") is not None:
-        stmt = stmt.where(Property.price >= float(m["preco_min"]))
-    if m.get("preco_max") is not None:
-        stmt = stmt.where(Property.price <= float(m["preco_max"]))
-    if m.get("dormitorios_min") is not None:
-        stmt = stmt.where(Property.bedrooms >= int(m["dormitorios_min"]))
-    limit = int(m.get("limit", 5))
-    stmt = stmt.limit(min(max(limit,1), 20))
-    rows = db.execute(stmt).scalars().all()
-    return [
-        {
-            "id": r.id,
-            "titulo": r.title,
-            "tipo": r.type.value,
-            "finalidade": r.purpose.value,
-            "preco": r.price,
-            "cidade": r.address_city,
-            "estado": r.address_state,
-            "dormitorios": r.bedrooms,
+    def t_buscar_imoveis(db: Session, params: Dict[str, Any]) -> List[Dict[str, Any]]:
+        stmt = select(Property).where(Property.is_active == True)  # noqa: E712
+        m = params or {}
+        if m.get("finalidade"):
+            stmt = stmt.where(Property.purpose == PropertyPurpose(m["finalidade"]))
+        if m.get("tipo"):
+            stmt = stmt.where(Property.type == PropertyType(m["tipo"]))
+        if m.get("cidade"):
+            stmt = stmt.where(Property.address_city.ilike(m["cidade"]))
+        if m.get("estado"):
+            stmt = stmt.where(Property.address_state == m["estado"]) 
+        if m.get("preco_min") is not None:
+            stmt = stmt.where(Property.price >= float(m["preco_min"]))
+        if m.get("preco_max") is not None:
+            stmt = stmt.where(Property.price <= float(m["preco_max"]))
+        if m.get("dormitorios_min") is not None:
+            stmt = stmt.where(Property.bedrooms >= int(m["dormitorios_min"]))
+        limit = int(m.get("limit", 5))
+        stmt = stmt.limit(min(max(limit,1), 20))
+        rows = db.execute(stmt).scalars().all()
+        return [
+            {
+                "id": r.id,
+                "titulo": r.title,
+                "tipo": r.type.value,
+                "finalidade": r.purpose.value,
+                "preco": r.price,
+                "cidade": r.address_city,
+                "estado": r.address_state,
+                "dormitorios": r.bedrooms,
+            }
+            for r in rows
+        ]
+
+    def t_detalhar_imovel(db: Session, imovel_id: int) -> Dict[str, Any]:
+        p = db.get(Property, imovel_id)
+        if not p:
+            raise HTTPException(status_code=404, detail="property_not_found")
+        imgs_stmt = (
+            select(PropertyImage)
+            .where(PropertyImage.property_id == imovel_id)
+            .order_by(PropertyImage.is_cover.desc(), PropertyImage.sort_order.asc(), PropertyImage.id.asc())
+        )
+        imgs = db.execute(imgs_stmt).scalars().all()
+        return {
+            "id": p.id,
+            "titulo": p.title,
+            "descricao": p.description,
+            "tipo": p.type.value,
+            "finalidade": p.purpose.value,
+            "preco": p.price,
+            "cidade": p.address_city,
+            "estado": p.address_state,
+            "bairro": p.address_neighborhood,
+            "dormitorios": p.bedrooms,
+            "banheiros": p.bathrooms,
+            "suites": p.suites,
+            "vagas": p.parking_spots,
+            "area_total": p.area_total,
+            "area_util": p.area_usable,
+            "imagens": [
+                {"id": i.id, "url": i.url, "is_capa": i.is_cover, "ordem": i.sort_order} for i in imgs
+            ],
         }
-        for r in rows
-    ]
 
+    def t_criar_lead(db: Session, dados: Dict[str, Any]) -> Dict[str, Any]:
+        lead = Lead(
+            tenant_id=1,
+            name=dados.get("nome"),
+            phone=dados.get("telefone"),
+            email=dados.get("email"),
+            source=dados.get("origem", "mcp"),
+            preferences=dados.get("preferencias"),
+            consent_lgpd=bool(dados.get("consentimento_lgpd", False)),
+        )
+        db.add(lead)
+        db.commit()
+        db.refresh(lead)
+        return {"id": lead.id, "nome": lead.name, "telefone": lead.phone}
 
-def t_detalhar_imovel(db: Session, imovel_id: int) -> Dict[str, Any]:
-    p = db.get(Property, imovel_id)
-    if not p:
-        raise HTTPException(status_code=404, detail="property_not_found")
-    imgs_stmt = (
-        select(PropertyImage)
-        .where(PropertyImage.property_id == imovel_id)
-        .order_by(PropertyImage.is_cover.desc(), PropertyImage.sort_order.asc(), PropertyImage.id.asc())
-    )
-    imgs = db.execute(imgs_stmt).scalars().all()
     return {
-        "id": p.id,
-        "titulo": p.title,
-        "descricao": p.description,
-        "tipo": p.type.value,
-        "finalidade": p.purpose.value,
-        "preco": p.price,
-        "cidade": p.address_city,
-        "estado": p.address_state,
-        "bairro": p.address_neighborhood,
-        "dormitorios": p.bedrooms,
-        "banheiros": p.bathrooms,
-        "suites": p.suites,
-        "vagas": p.parking_spots,
-        "area_total": p.area_total,
-        "area_util": p.area_usable,
-        "imagens": [
-            {"id": i.id, "url": i.url, "is_capa": i.is_cover, "ordem": i.sort_order} for i in imgs
-        ],
+        "buscar_imoveis": {"fn": t_buscar_imoveis},
+        "detalhar_imovel": {"fn": t_detalhar_imovel},
+        "criar_lead": {"fn": t_criar_lead},
     }
-
-
-def t_criar_lead(db: Session, dados: Dict[str, Any]) -> Dict[str, Any]:
-    lead = Lead(
-        tenant_id=1,
-        name=dados.get("nome"),
-        phone=dados.get("telefone"),
-        email=dados.get("email"),
-        source=dados.get("origem", "mcp"),
-        preferences=dados.get("preferencias"),
-        consent_lgpd=bool(dados.get("consentimento_lgpd", False)),
-    )
-    db.add(lead)
-    db.commit()
-    db.refresh(lead)
-    return {"id": lead.id, "nome": lead.name, "telefone": lead.phone}
 
 
 def t_calcular_financiamento(params: Dict[str, Any]) -> Dict[str, Any]:
@@ -200,12 +213,33 @@ def t_calcular_financiamento(params: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-TOOLS = {
-    "buscar_imoveis": {"fn": t_buscar_imoveis},
-    "detalhar_imovel": {"fn": t_detalhar_imovel},
-    "criar_lead": {"fn": t_criar_lead},
+# --- Tools: Banco Pan ---
+def t_pan_gerar_token() -> Dict[str, Any]:
+    svc = PanService()
+    token = svc.obter_token(force_refresh=True)
+    return {"ok": True, "token_preview": token[:8] + "..." if token else ""}
+
+
+def t_pan_pre_analise(params: Dict[str, Any]) -> Dict[str, Any]:
+    cpf = str(params.get("cpf", "")).strip()
+    categoria = (params.get("categoria") or params.get("categoriaVeiculo") or None)
+    if not cpf:
+        raise HTTPException(status_code=400, detail="cpf_required")
+    svc = PanService()
+    res = svc.pre_analise(cpf=cpf, categoria=categoria)
+    return res
+
+
+TOOLS: Dict[str, Dict[str, Any]] = {
+    # Gerais
     "calcular_financiamento": {"fn": t_calcular_financiamento},
+    # Banco Pan
+    "pan_gerar_token": {"fn": t_pan_gerar_token},
+    "pan_pre_analise": {"fn": t_pan_pre_analise},
 }
+
+# Adiciona tools do domínio imobiliário somente quando habilitado
+TOOLS.update(_build_realestate_tools())
 
 
 def _whitelist_ok(name: str, allow: Optional[List[str]]) -> bool:
@@ -234,16 +268,31 @@ def execute_mcp(body: MCPRequest, db: Session = Depends(get_db), Authorization: 
         if body.tool not in TOOLS:
             raise HTTPException(status_code=404, detail="tool_not_found")
         fn = TOOLS[body.tool]["fn"]
-        if body.tool == "detalhar_imovel":
-            res = fn(db, int((body.params or {}).get("imovel_id")))
-        elif body.tool == "calcular_financiamento":
-            res = fn(body.params or {})
-        elif body.tool == "buscar_imoveis":
-            res = fn(db, body.params or {})
-        elif body.tool == "criar_lead":
-            res = fn(db, body.params or {})
-        else:
-            res = None
+        try:
+            if body.tool == "detalhar_imovel":
+                res = fn(db, int((body.params or {}).get("imovel_id")))
+            elif body.tool == "calcular_financiamento":
+                res = fn(body.params or {})
+            elif body.tool == "buscar_imoveis":
+                res = fn(db, body.params or {})
+            elif body.tool == "criar_lead":
+                res = fn(db, body.params or {})
+            elif body.tool == "pan_gerar_token":
+                res = fn()
+            elif body.tool == "pan_pre_analise":
+                res = fn(body.params or {})
+            else:
+                res = None
+        except HTTPException:
+            raise
+        except Exception as e:
+            log.error(
+                "mcp_tool_error",
+                tool=body.tool,
+                error=str(e),
+            )
+            # Retorna erro claro ao cliente sem 500 genérico
+            raise HTTPException(status_code=400, detail={"tool": body.tool, "error": str(e)})
         tool_calls.append(MCPToolCall(tool=body.tool, params=body.params or {}, result=res))
         return MCPResponse(message="tool_executed", tool_calls=tool_calls)
 

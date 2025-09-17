@@ -2,8 +2,12 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
-.env
-.env.*
+adapter-wa/node_modules
+adapter-wa/qr.png
+adapter-wa/qr-*.png
+adapter-wa/*.log
+adapter-wa/.wwebjs_auth/
+adapter-wa/.wwebjs_cache/
 .poetry/
 .venv/
 .mypy_cache/
@@ -21,7 +25,7 @@ test.db
 dev.db
 dev_auth.db
 dev_test.db
-
+.env
 # Frontend (Vite/React)
 frontend/ui/node_modules/
 frontend/ui/dist/
@@ -34,8 +38,8 @@ frontend/ui/.env
 frontend/ui/.env.*
 
 # Env files
-.env
-*.env
+# .env
+# *.env
 
 # OS/Editor
 .DS_Store

@@ -8,13 +8,11 @@ from app.api.routes.health import router as health_router
 from app.api.routes.ops import router as ops_router
 from app.api.routes.webhook import router as webhook_router
 from app.api.routes.admin import router as admin_router
-from app.api.routes.realestate import router as realestate_router
 from app.api.routes.mcp import router as mcp_router
 from app.api.routes.metrics import router as metrics_router
 from app.api.routes.auth import router as auth_router
 from app.repositories.db import engine
 from app.repositories.models import Base, User, UserRole
-import app.domain.realestate.models  # noqa: F401 - importa modelos para registrar no metadata
 from contextlib import asynccontextmanager
 import structlog
 import traceback
@@ -64,9 +62,12 @@ tags_metadata = [
     {"name": "webhook", "description": "Webhook do WhatsApp Cloud API."},
     {"name": "ops", "description": "Operações e healthchecks de integrações."},
     {"name": "admin", "description": "Endpoints administrativos (futuros)."},
-    {"name": "realestate", "description": "Domínio imobiliário: imóveis e leads."},
     {"name": "auth", "description": "Autenticação JWT e informações do usuário."},
 ]
+
+# Adiciona tag do domínio imobiliário apenas se habilitado
+if settings.REAL_ESTATE_ENABLED:
+    tags_metadata.append({"name": "realestate", "description": "Domínio imobiliário: imóveis e leads."})
 
 app = FastAPI(
     title="AtendeJá Chatbot API",
@@ -111,10 +112,16 @@ app.include_router(health_router, prefix="/health", tags=["health"])
 app.include_router(ops_router, prefix="/ops", tags=["ops"]) 
 app.include_router(webhook_router, prefix="/webhook", tags=["webhook"]) 
 app.include_router(admin_router, prefix="/admin", tags=["admin"]) 
-app.include_router(realestate_router, prefix="/re", tags=["realestate"]) 
 app.include_router(mcp_router, prefix="/mcp", tags=["mcp"]) 
 app.include_router(auth_router, prefix="/auth", tags=["auth"]) 
 app.include_router(metrics_router, prefix="/metrics", tags=["metrics"]) 
+
+# Inclui rotas e modelos do domínio imobiliário somente quando habilitado
+if settings.REAL_ESTATE_ENABLED:
+    # Importação tardia para evitar carregamento quando desabilitado
+    import app.domain.realestate.models  # noqa: F401 - registra modelos no metadata
+    from app.api.routes.realestate import router as realestate_router
+    app.include_router(realestate_router, prefix="/re", tags=["realestate"]) 
 
 # Global error handlers (uniform error payloads)
 app.add_exception_handler(HTTPException, http_exception_handler)

@@ -1,0 +1,8 @@
+{
+    "codigo": "Erro",
+    "mensagem": "Farol não localizado.",
+    "origem": "Sistema NPV.",
+    "detalhes": [
+        "Farol não localizado."
+    ]
+}

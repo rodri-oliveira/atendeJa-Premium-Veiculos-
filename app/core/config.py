@@ -35,11 +35,33 @@ class Settings(BaseSettings):
     REDIS_PORT: int = 6379
     REDIS_DB: int = 0
 
+    # Chatbot – boas práticas
+    # Janela de sessão: mensagens livres somente dentro de 24h desde a última mensagem do cliente
+    WINDOW_24H_ENABLED: bool = True
+    WINDOW_24H_HOURS: int = 24
+    # Rate limit
+    WA_RATE_LIMIT_PER_CONTACT_SECONDS: int = 2  # 1 msg a cada 2s por contato
+    WA_RATE_LIMIT_GLOBAL_PER_MINUTE: int = 60   # teto global por tenant/minuto
+
     # MCP (Model Context Protocol) – autenticação simples para /mcp/execute
     MCP_API_TOKEN: str = ""  # quando definido, exigir Bearer <token> no endpoint MCP
 
     # Imóveis somente leitura (produção)
     RE_READ_ONLY: bool = False
+    # Habilitar domínio de imóveis (rotas/modelos). Para o POC de veículos, manter False para evitar conflitos.
+    REAL_ESTATE_ENABLED: bool = False
+
+    # Banco Pan – Integração (POC)
+    PAN_BASE_URL: str = ""
+    PAN_API_KEY: str = ""
+    # Par no formato APIKEY:SECRETKEY (será convertido para Base64 no Authorization: Basic)
+    PAN_BASIC_CREDENTIALS: str = ""
+    PAN_USERNAME: str = ""
+    PAN_PASSWORD: str = ""
+    PAN_LOJA_ID: str = ""
+    PAN_DEFAULT_CATEGORIA: str = "USADO"
+    # Modo mock para desenvolvimento/POC sem credenciais reais
+    PAN_MOCK: bool = False
 
     # Auth (login do sistema)
     AUTH_JWT_SECRET: str = "changeme"

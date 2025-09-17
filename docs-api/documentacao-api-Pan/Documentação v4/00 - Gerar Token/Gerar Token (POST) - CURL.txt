@@ -1,0 +1,10 @@
+curl --location --request POST '{{base_url}}/veiculos/v0/tokens' \
+--header 'Content-Type: application/json' \
+--header 'ApiKey: {{Apikey}} \
+--header 'Authorization: Basic {{APIKEY:SECRETKEY convertido em Base64}} \
+--header 'Cookie: f5avraaaaaaaaaaaaaaaa_session_=CURLOPENAPINKBLBCLOACKJMGICEGNLFEHHGDEENPIHCMPBCBMOOLKJHPLFPEKEOKDNLLDIBDIGFJMJMKIDMOAPHOGBBAEKMDGAEPFCONJBKICMJGOMFKFNKACKFNODHAM; TS01b8223e=0142889eb810595598b8234rtgn88906c9c236c0f9846dn98j09b7662b6e308776bb01d4c1a5d6cf099f17c3173f6c96eac1449e' \
+--data-raw '{
+    "username": "{{username}}",
+    "password": "{{password}}",
+    "grant_type": "client_credentials+password"
+}'

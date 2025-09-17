@@ -1,0 +1,18 @@
+{
+  "name": "adapter-wa",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Adapter WhatsApp Web (POC) para integrar com MCP (/mcp/execute)",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "axios": "^1.7.7",
+    "dotenv": "^16.4.5",
+    "qrcode": "^1.5.3",
+    "qrcode-terminal": "^0.12.0",
+    "whatsapp-web.js": "^1.25.0"
+  }
+}

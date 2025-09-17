@@ -56,6 +56,57 @@ npm run dev   # http://localhost:5173
 - `POST /admin/re/imoveis/import-csv`
 - `GET /metrics/overview?period_months=6|12&channel=whatsapp|all&start_date=YYYY-MM-DD&end_date=YYYY-MM-DD`
 
+## Testes rápidos – MCP com Banco Pan (POC)
+
+1) Configure o `.env` com as variáveis `PAN_*` (sandbox):
+
+```
+PAN_BASE_URL=
+PAN_API_KEY=
+PAN_BASIC_CREDENTIALS=APIKEY:SECRETKEY   # será convertido para Base64 internamente
+PAN_USERNAME=
+PAN_PASSWORD=
+PAN_LOJA_ID=
+PAN_DEFAULT_CATEGORIA=USADO
+```
+
+2) Suba a API com Docker Compose (portas alternativas para coexistir com outro projeto):
+
+```bash
+docker compose up -d --build postgres redis api
+# API ficará em http://localhost:8001 (mapeamento no docker-compose.yml)
+```
+
+3) Chamar MCP em modo "tool":
+
+Gerar token (teste de credenciais):
+
+```bash
+curl -X POST http://localhost:8001/mcp/execute \
+  -H "Content-Type: application/json" \
+  -d '{
+    "input": "",
+    "mode": "tool",
+    "tool": "pan_gerar_token",
+    "params": {}
+  }'
+```
+
+Pré‑análise (CPF e categoria):
+
+```bash
+curl -X POST http://localhost:8001/mcp/execute \
+  -H "Content-Type: application/json" \
+  -d '{
+    "input": "",
+    "mode": "tool",
+    "tool": "pan_pre_analise",
+    "params": { "cpf": "00000000000", "categoria": "USADO" }
+  }'
+```
+
+Se `MCP_API_TOKEN` estiver definido no `.env`, inclua o header `Authorization: Bearer <token>` nas chamadas.
+
 ## Screenshots
 ![Login](docs/screenshots/login.png)
 ![Usuários](docs/screenshots/admim-user.png)

@@ -1,0 +1,35 @@
+{
+    "camposRequeridos": [
+        {
+            "campo": "CPF",
+            "requerido": true
+        },
+        {
+            "campo": "Data de Nascimento",
+            "requerido": false
+        },
+        {
+            "campo": "DDD/Celular",
+            "requerido": true
+        },
+        {
+            "campo": "Ocupação (deverá apresentar o código)",
+            "requerido": false
+        },
+        {
+            "campo": "Renda (mês)",
+            "requerido": false
+        },
+        {
+            "campo": "Renda Complementar (mês)",
+            "requerido": false
+        }
+    ],
+    "descricaoPA": "Preencha os dados do cliente para prosseguirmos com a simulação!",
+    "codigo": 3,
+    "descricao": "Elegivel"
+}
+
+// true = Quando o parceiro precisa enviar os dados do campo
+// false = Quando o parceiro NAO precisa enviar os dados do campo (retorno do bureaux)
+	

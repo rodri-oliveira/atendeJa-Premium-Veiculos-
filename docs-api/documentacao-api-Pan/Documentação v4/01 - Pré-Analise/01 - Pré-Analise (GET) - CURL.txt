@@ -1,0 +1,4 @@
+curl --location --request GET '{{base_url}}/veiculos/v0/lojas/{{idLoja}}/preanalise?cpf={{cpfCliente}}&categoriaVeiculo={{categoriaVeiculo}}' \
+--header 'Authorization: Bearer {{Token}}' \
+--header 'ApiKey: {{ApiKey}}' \
+--header 'Cookie: f5avraaaaaaaaaaaaaaaa_session_=CURLOPENOKHEPNNBEADJGLEGOBNLKIFKPOKCODJDMLPOIEFKMONINACBPOAJDCDPDFDMELLEPEAJKEAEILOEEKDJALCEHIOGGIJELCHINKNNHJHEIFMGFPHFNOC; f5avraaaaaaaaaaaaaaaa_session_=DJNEJDCIKPJDDODMALANNCURLPDLOJKNCEDDOBPGPMENHFGOOFBOBDEPLNDHCKBGAPGPJKIODKABADJDEECNILLFAOAOHKMJOPNMAFAMPBKGHAFFFGDHKPB; TS01b8223e=0142889eb854b4f0c3c639eab5ace96ea1ee14a76ygh898uj0ik91576019d42ca26217d7a2d655544ba244d3aa8528a2ebb4e750f0'
