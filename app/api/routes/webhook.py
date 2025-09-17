@@ -11,7 +11,14 @@ import redis
 from sqlalchemy.orm import Session
 from sqlalchemy import select
 from app.repositories import models as core_models
-from app.domain.realestate import models as re_models
+try:
+    # Importa modelos de imóveis apenas quando o domínio estiver habilitado
+    if settings.REAL_ESTATE_ENABLED:
+        from app.domain.realestate import models as re_models  # type: ignore
+    else:
+        re_models = None  # type: ignore
+except Exception:
+    re_models = None  # type: ignore
  
 from pydantic import BaseModel
 from typing import Literal
@@ -156,16 +163,35 @@ async def receive(request: Request):
                     except Exception as e:  # noqa: BLE001
                         log.error("buffer_enqueue_error", error=str(e))
 
-                    # Processar funil imobiliário sincronamente (MVP)
-                    with SessionLocal() as db:
-                        resp_text = _process_realestate_funnel(db, tenant_name=settings.DEFAULT_TENANT_ID, wa_id=wa_id or "unknown", user_text=text_in)
-                        # Enviar resposta via provider configurado (Meta Cloud por padrão)
+                    # Fluxo de resposta: se domínio imobiliário estiver habilitado, usa funil; caso contrário, orienta fluxo de veículos
+                    if settings.REAL_ESTATE_ENABLED and re_models is not None:
+                        with SessionLocal() as db:
+                            resp_text = _process_realestate_funnel(db, tenant_name=settings.DEFAULT_TENANT_ID, wa_id=wa_id or "unknown", user_text=text_in)
+                            # Enviar resposta via provider configurado (Meta Cloud por padrão)
+                            try:
+                                provider = get_provider()
+                                to = wa_id or ""
+                                if to:
+                                    provider.send_text(to=to, text=resp_text)
+                                log.info("bot_reply", wa_id=wa_id, reply=resp_text)
+                            except Exception as e:  # noqa: BLE001
+                                log.error("bot_reply_error", error=str(e))
+                    else:
+                        # Modo veículos (POC): mensagem padrão de orientação
                         try:
                             provider = get_provider()
                             to = wa_id or ""
                             if to:
-                                provider.send_text(to=to, text=resp_text)
-                            log.info("bot_reply", wa_id=wa_id, reply=resp_text)
+                                provider.send_text(
+                                    to=to,
+                                    text=(
+                                        "Olá! Para iniciar a análise, envie:\n"
+                                        "• cpf 00000000000\n"
+                                        "• opcional: categoria USADO | NOVO | MOTOS\n"
+                                        "Para encerrar, digite SAIR."
+                                    ),
+                                )
+                            log.info("bot_reply_vehicle_hint", wa_id=wa_id)
                         except Exception as e:  # noqa: BLE001
                             log.error("bot_reply_error", error=str(e))
         return {"received": True}

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import { apiFetch } from '../lib/auth'
 
 interface Lead {
   id: number
@@ -30,8 +31,8 @@ export default function LeadsList() {
       setLoading(true)
       setError(null)
       try {
-        const url = `/api/re/leads?limit=${limit}&offset=${offset}`
-        const res = await fetch(url, { cache: 'no-store' })
+        const url = `/api/admin/leads?limit=${limit}&offset=${offset}`
+        const res = await apiFetch(url, { cache: 'no-store', method: 'GET' })
         if (!res.ok) throw new Error(`HTTP ${res.status}`)
         const js = await res.json()
         if (alive) setData(js)
