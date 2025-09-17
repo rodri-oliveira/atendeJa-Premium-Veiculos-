@@ -38,8 +38,8 @@ frontend/ui/.env
 frontend/ui/.env.*
 
 # Env files
-# .env
-# *.env
+.env
+*.env
 
 # OS/Editor
 .DS_Store
