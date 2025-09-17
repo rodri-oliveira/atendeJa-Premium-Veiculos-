@@ -143,3 +143,30 @@ class MessageLog(Base):
         Index("idx_msglog_tenant_to", "tenant_id", "to"),
         Index("idx_msglog_created", "created_at"),
     )
+
+
+# ------------------- Veículos (POC) -------------------
+class Vehicle(Base):
+    __tablename__ = "vehicles"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    tenant_id: Mapped[int] = mapped_column(Integer, index=True, default=1)
+    title: Mapped[str] = mapped_column(String(180))  # ex.: "Fiat Argo 1.0"
+    brand: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    model: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    year: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    category: Mapped[str | None] = mapped_column(String(16), nullable=True)  # NOVO|USADO|MOTOS
+    price: Mapped[float | None] = mapped_column(Float, nullable=True)
+    image_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class VehicleImage(Base):
+    __tablename__ = "vehicle_images"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    vehicle_id: Mapped[int] = mapped_column(ForeignKey("vehicles.id"), index=True)
+    url: Mapped[str] = mapped_column(String(512))
+    is_cover: Mapped[bool] = mapped_column(Boolean, default=False)
+    sort_order: Mapped[int] = mapped_column(Integer, default=0)

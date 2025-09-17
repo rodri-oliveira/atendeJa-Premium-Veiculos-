@@ -1,0 +1,7 @@
+title,brand,model,year,category,price,image_url,active
+Fiat Argo 1.0,Fiat,Argo,2021,USADO,58990,https://loremflickr.com/800/600/car?lock=1,true
+Volkswagen Gol 1.6,Volkswagen,Gol,2019,USADO,44990,https://loremflickr.com/800/600/car?lock=2,true
+Chevrolet Onix 1.0,Chevrolet,Onix,2022,NOVO,79990,https://loremflickr.com/800/600/car?lock=3,true
+Hyundai HB20 1.0,Hyundai,HB20,2020,USADO,56990,https://loremflickr.com/800/600/car?lock=4,true
+Toyota Corolla 2.0,Toyota,Corolla,2021,USADO,119900,https://loremflickr.com/800/600/car?lock=5,true
+Honda Civic 2.0,Honda,Civic,2018,USADO,94900,https://loremflickr.com/800/600/car?lock=6,true

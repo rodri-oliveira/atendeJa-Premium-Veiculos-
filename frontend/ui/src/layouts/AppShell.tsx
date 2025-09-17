@@ -44,15 +44,16 @@ export default function AppShell() {
             </div>
             <div>
               <div className="text-lg font-bold">AtendeJá</div>
-              <div className="text-xs text-slate-300">ND Imóveis</div>
+              <div className="text-xs text-slate-300">Veículos</div>
             </div>
           </Link>
         </div>
         <nav className="p-4 space-y-2">
-          <div className="px-3 py-2 text-xs uppercase tracking-wide text-slate-400 font-semibold">Imobiliário</div>
-          <Item to="/imoveis" label="Imóveis" />
-          <Item to="/import" label="Importar CSV" />
+          <div className="px-3 py-2 text-xs uppercase tracking-wide text-slate-400 font-semibold">Veículos</div>
+          <Item to="/veiculos" label="Veículos" />
+          <Item to="/financiamento" label="Financiamento" />
           <Item to="/leads" label="Leads" />
+          <Item to="/import" label="Importar CSV" />
           <Item to="/ops" label="Operações" />
           <Item to="/reports" label="Relatórios" />
           {authed && (

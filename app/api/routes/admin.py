@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, UploadFile, File
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from app.repositories.db import SessionLocal
@@ -13,6 +13,7 @@ from app.repositories.models import (
     UserRole,
     SuppressedContact,
     MessageLog,
+    Vehicle,
 )
 
 import structlog
@@ -32,6 +33,181 @@ log = structlog.get_logger()
 def list_conversations(wa_id: str, limit: int = 50):
     # Implementação simplificada para os testes: retorna lista vazia
     return []
+
+
+# ------------------- Leads (veículos) -------------------
+@router.get("/leads")
+def list_leads(limit: int = 20, offset: int = 0):
+    """Lista leads a partir dos contatos cadastrados (POC veículos).
+
+    Retorna estrutura compatível com a UI: id, nome, telefone, email, origem, preferencias.
+    """
+    try:
+        with SessionLocal() as db:  # type: Session
+            tenant = _get_or_create_default_tenant(db)
+            q = db.query(Contact).filter(Contact.tenant_id == tenant.id).order_by(Contact.id.desc())
+            q = q.limit(max(1, min(limit, 200))).offset(max(0, offset))
+            rows = q.all()
+            return [
+                {
+                    "id": r.id,
+                    "nome": r.name,
+                    "telefone": r.wa_id,
+                    "email": None,
+                    "origem": "whatsapp",
+                    "preferencias": None,
+                }
+                for r in rows
+            ]
+    except HTTPException:
+        raise
+    except Exception as e:
+        log.error("list_leads_error", error=str(e))
+        raise HTTPException(status_code=400, detail="list_leads_error")
+
+
+@router.post("/leads/import-csv")
+def import_leads_csv(file: UploadFile = File(...)):
+    """Importa leads básicos via CSV. Colunas aceitas: nome, telefone, email, origem.
+
+    - telefone será usado como wa_id (normalizado removendo não-dígitos);
+    - contatos existentes (tenant, wa_id) são atualizados com nome/email.
+    """
+    try:
+        import csv
+        import io
+        content = file.file.read()
+        try:
+            text = content.decode("utf-8")
+        except Exception:
+            text = content.decode("latin-1")
+        if text.startswith("\ufeff"):
+            text = text.lstrip("\ufeff")
+        reader = csv.DictReader(io.StringIO(text))
+        cols = {c.strip().lower() for c in (reader.fieldnames or [])}
+        if not cols:
+            raise HTTPException(status_code=400, detail="csv_no_headers")
+
+        created = 0
+        updated = 0
+        with SessionLocal() as db:  # type: Session
+            tenant = _get_or_create_default_tenant(db)
+            for row in reader:
+                nome = (row.get("nome") or row.get("name") or "").strip() or None
+                telefone = (row.get("telefone") or row.get("phone") or row.get("wa_id") or "").strip()
+                email = (row.get("email") or "").strip() or None
+                origem = (row.get("origem") or row.get("source") or "csv").strip() or "csv"
+                wa = "".join(ch for ch in telefone if ch.isdigit())
+                if not wa:
+                    # ignora linhas sem telefone/wa_id
+                    continue
+                existing = (
+                    db.query(Contact)
+                    .filter(Contact.tenant_id == tenant.id, Contact.wa_id == wa)
+                    .first()
+                )
+                if existing:
+                    # atualiza campos básicos
+                    if nome:
+                        existing.name = nome
+                    db.add(existing)
+                    updated += 1
+                else:
+                    c = Contact(tenant_id=tenant.id, wa_id=wa, name=nome, tags=[origem])
+                    db.add(c)
+                    created += 1
+            db.commit()
+
+        return {"processed": created + updated, "inserted": created, "updated": updated}
+    except HTTPException:
+        raise
+    except Exception as e:
+        log.error("import_leads_csv_error", error=str(e))
+        raise HTTPException(status_code=400, detail={"code": "csv_parse_error", "message": str(e)})
+
+
+@router.post("/veiculos/import-csv")
+def import_veiculos_csv(file: UploadFile = File(...)):
+    """Importa inventário de veículos via CSV.
+
+    Colunas aceitas: title, brand, model, year, category, price, image_url, active
+    """
+    try:
+        import csv
+        import io
+        content = file.file.read()
+        try:
+            text = content.decode("utf-8")
+        except Exception:
+            text = content.decode("latin-1")
+        if text.startswith("\ufeff"):
+            text = text.lstrip("\ufeff")
+        reader = csv.DictReader(io.StringIO(text))
+        created = 0
+        updated = 0
+        with SessionLocal() as db:  # type: Session
+            tenant = _get_or_create_default_tenant(db)
+            for row in reader:
+                title = (row.get("title") or row.get("titulo") or "").strip()
+                if not title:
+                    # ignora sem título
+                    continue
+                brand = (row.get("brand") or "").strip() or None
+                model = (row.get("model") or "").strip() or None
+                year = None
+                try:
+                    year = int((row.get("year") or "").strip())
+                except Exception:
+                    year = None
+                category = (row.get("category") or row.get("categoria") or "").strip().upper() or None
+                price = None
+                try:
+                    price = float((row.get("price") or "").replace('.', '').replace(',', '.'))
+                except Exception:
+                    price = None
+                image_url = (row.get("image_url") or row.get("imagem") or "").strip() or None
+                active = True
+                act_raw = (row.get("active") or row.get("ativo") or "").strip().lower()
+                if act_raw in {"0", "false", "nao", "não", "no"}:
+                    active = False
+
+                # Upsert por (tenant_id, title, year)
+                existing = (
+                    db.query(Vehicle)
+                    .filter(Vehicle.tenant_id == tenant.id, Vehicle.title == title, Vehicle.year == year)
+                    .first()
+                )
+                if existing:
+                    existing.brand = brand or existing.brand
+                    existing.model = model or existing.model
+                    existing.category = category or existing.category
+                    existing.price = price if price is not None else existing.price
+                    existing.image_url = image_url or existing.image_url
+                    existing.active = active
+                    db.add(existing)
+                    updated += 1
+                else:
+                    v = Vehicle(
+                        tenant_id=tenant.id,
+                        title=title,
+                        brand=brand,
+                        model=model,
+                        year=year,
+                        category=category,
+                        price=price,
+                        image_url=image_url,
+                        active=active,
+                    )
+                    db.add(v)
+                    created += 1
+            db.commit()
+
+        return {"processed": created + updated, "inserted": created, "updated": updated}
+    except HTTPException:
+        raise
+    except Exception as e:
+        log.error("import_vehicles_csv_error", error=str(e))
+        raise HTTPException(status_code=400, detail={"code": "csv_parse_error", "message": str(e)})
 
 # ------------------- Gestão de Usuários (admin-only) -------------------
 class UserCreate(BaseModel):
