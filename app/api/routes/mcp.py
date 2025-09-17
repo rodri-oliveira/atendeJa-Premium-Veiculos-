@@ -36,34 +36,22 @@ class MCPRequest(BaseModel):
         "json_schema_extra": {
             "examples": [
                 {
-                    "input": "Quero alugar apartamento 2 quartos em São Paulo até 3500",
-                    "mode": "auto"
-                },
-                {
-                    "input": "",
-                    "mode": "tool",
-                    "tool": "buscar_imoveis",
-                    "params": {
-                        "finalidade": "rent",
-                        "tipo": "apartment",
-                        "cidade": "São Paulo",
-                        "estado": "SP",
-                        "dormitorios_min": 2,
-                        "preco_max": 3500,
-                        "limit": 5
-                    }
-                },
-                {
-                    "input": "",
-                    "mode": "tool",
-                    "tool": "detalhar_imovel",
-                    "params": {"imovel_id": 1}
-                },
-                {
                     "input": "",
                     "mode": "tool",
                     "tool": "calcular_financiamento",
                     "params": {"preco": 400000, "entrada_pct": 20, "prazo_meses": 360, "taxa_pct": 1.0}
+                },
+                {
+                    "input": "",
+                    "mode": "tool",
+                    "tool": "pan_pre_analise",
+                    "params": {"cpf": "00000000000", "categoria": "USADO"}
+                },
+                {
+                    "input": "",
+                    "mode": "tool",
+                    "tool": "pan_gerar_token",
+                    "params": {}
                 }
             ]
         }
@@ -303,7 +291,16 @@ def execute_mcp(body: MCPRequest, db: Session = Depends(get_db), Authorization: 
         tool_calls.append(MCPToolCall(tool="calcular_financiamento", params={}, result=res))
         return MCPResponse(message=f"Parcela aproximada R$ {res['parcela']}", tool_calls=tool_calls)
 
-    # Busca por intenção + extração de critérios
+    # Se domínio de imóveis estiver desabilitado, não tente rotas/imobiliário
+    if not settings.REAL_ESTATE_ENABLED:
+        return MCPResponse(
+            message=(
+                "Sou um assistente de financiamento de veículos. Você pode enviar: 'cpf 00000000000' e opcionalmente 'categoria USADO/NOVO/MOTOS'."
+            ),
+            tool_calls=tool_calls,
+        )
+
+    # Busca por intenção + extração de critérios (somente quando imóveis estiver habilitado)
     params: Dict[str, Any] = {}
     if "alugar" in text or "loca" in text:
         params["finalidade"] = "rent"
@@ -318,7 +315,6 @@ def execute_mcp(body: MCPRequest, db: Session = Depends(get_db), Authorization: 
         params["cidade"] = "São Paulo"
         params["estado"] = "SP"
 
-    # Dormitórios: "2 quartos" | "2 dorm"
     import re
     m_quartos = re.search(r"(\d+)\s*(quarto|quart|dorm)", text)
     if m_quartos:
@@ -327,9 +323,7 @@ def execute_mcp(body: MCPRequest, db: Session = Depends(get_db), Authorization: 
         except Exception:
             pass
 
-    # Preço: "até 3500" | "2000-3500" | "3500"
     t_clean = text.replace("r$", "").replace(" ", "")
-    # faixa 2000-3500
     if "-" in t_clean:
         parts = t_clean.split("-", 1)
         try:
@@ -339,14 +333,12 @@ def execute_mcp(body: MCPRequest, db: Session = Depends(get_db), Authorization: 
             params["preco_max"] = max_p
         except Exception:
             pass
-    # até 3500
     m_ate = re.search(r"at[eé]?(\d{3,6})", t_clean)
     if m_ate:
         try:
             params["preco_max"] = float(m_ate.group(1))
         except Exception:
             pass
-    # número solto como teto
     elif not params.get("preco_max"):
         m_num = re.search(r"(\d{3,6})", t_clean)
         if m_num:
@@ -355,11 +347,15 @@ def execute_mcp(body: MCPRequest, db: Session = Depends(get_db), Authorization: 
             except Exception:
                 pass
 
-    res = t_buscar_imoveis(db, params)
-    tool_calls.append(MCPToolCall(tool="buscar_imoveis", params=params, result=res))
+    # t_buscar_imoveis existe apenas quando REAL_ESTATE_ENABLED=True
+    res = _build_realestate_tools().get("buscar_imoveis", {}).get("fn")
     if not res:
+        return MCPResponse(message="Módulo de imóveis desabilitado.", tool_calls=tool_calls)
+    data = res(db, params)
+    tool_calls.append(MCPToolCall(tool="buscar_imoveis", params=params, result=data))
+    if not data:
         return MCPResponse(message="Não encontrei imóveis com seu perfil. Pode me dizer cidade, tipo (apartamento/casa) e faixa de preço?", tool_calls=tool_calls)
     lines = ["Algumas opções:"]
-    for r in res:
+    for r in data:
         lines.append(f"#{r['id']} - {r['titulo']} | R$ {r['preco']:,.0f} | {r['cidade']}-{r['estado']}")
     return MCPResponse(message="\n".join(lines), tool_calls=tool_calls)
