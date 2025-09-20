@@ -7,6 +7,7 @@ from app.core.logging import configure_logging
 from app.api.routes.health import router as health_router
 from app.api.routes.ops import router as ops_router
 from app.api.routes.webhook import router as webhook_router
+from app.api.routes.llm import router as llm_router
 from app.api.routes.vehicles import router as vehicles_router
 from app.api.routes.admin import router as admin_router
 from app.api.routes.mcp import router as mcp_router
@@ -117,6 +118,7 @@ app.include_router(admin_router, prefix="/admin", tags=["admin"])
 app.include_router(mcp_router, prefix="/mcp", tags=["mcp"]) 
 app.include_router(auth_router, prefix="/auth", tags=["auth"]) 
 app.include_router(metrics_router, prefix="/metrics", tags=["metrics"]) 
+app.include_router(llm_router, tags=["llm"]) 
 app.include_router(vehicles_router, tags=["vehicles"]) 
 
 # Inclui rotas e modelos do domínio imobiliário somente quando habilitado

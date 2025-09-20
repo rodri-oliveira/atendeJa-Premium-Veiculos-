@@ -96,4 +96,61 @@ Observação: os exemplos incluem Cookie, mas a integração server‑to‑serve
 
 ---
 
+## Atualizações recentes (2025-09-20)
+
+### O que foi implementado
+- **Inventário de veículos (backend):**
+  - `GET /veiculos` e `GET /veiculos/{id}` servindo os dados do inventário.
+  - `POST /admin/veiculos/import-csv` para importação em massa (CSV de exemplo em `docs/import_veiculos_sample.csv`).
+- **Importação de leads (backend):**
+  - `POST /admin/leads/import-csv`.
+- **UI (frontend):**
+  - `VehiclesList.tsx`: lista com filtros (categoria, marca, preço) e cards com imagem, título, marca/modelo/ano e preço.
+  - `VehicleDetalhes.tsx`: detalhes de veículo, exibe imagem e atributos principais.
+  - `ImportCsv.tsx`: página unificada com duas seções (Leads e Veículos) e tratamento de erro **401 Não autenticado**.
+  - Menu com item “Importar CSV”.
+- **LLM local via Ollama (para testes internos enquanto aguardamos PAN):**
+  - Variável no backend: `OLLAMA_BASE_URL` (default `http://localhost:11434`).
+  - Rotas: `POST /llm/generate`, `POST /llm/chat` (proxy para Ollama, `stream=false` por padrão).
+  - Rota de diagnóstico: `GET /llm/ping` (mostra tentativas e URL utilizada).
+  - Fallbacks implementados no backend: tenta `OLLAMA_BASE_URL`, `http://host.docker.internal:11434` e `http://localhost:11434` em ordem, retornando detalhes de erro em caso de falha.
+
+### Problemas encontrados e como evitar
+- **Conectividade Docker ⇄ Host (Ollama):**
+  - Problema: usar `http://localhost:11434` dentro do container aponta para o próprio container, falhando.
+  - Solução: definir `OLLAMA_BASE_URL=http://host.docker.internal:11434` no `.env` e/ou usar os fallbacks implementados. Validar com `GET /llm/ping` (retorna `used_url`).
+- **Falha 401 na importação via UI:**
+  - Causa: sessão expirada ou não autenticado.
+  - Solução: `ImportCsv.tsx` trata 401 com mensagem clara; recomendação de redirecionamento para `/login` se desejado.
+- **Encoding no PowerShell (acentos/emoji):**
+  - Sintoma: respostas exibiam “OlÃ¡!”.
+  - Solução: `chcp 65001` e `OutputEncoding`/`Console.OutputEncoding` para UTF‑8; ou salvar a saída em arquivo UTF‑8.
+- **Aspas no PowerShell ao enviar JSON:**
+  - Sintoma: `PositionalParameterNotFound` quando havia aspas simples dentro de JSON.
+  - Solução: usar `ConvertTo-Json`, here‑string `@"..."@` ou duplicar aspas simples.
+
+### Plano futuro (aguardando credenciais do Banco Pan)
+- **Operacional (PAN):**
+  - Enviar e‑mail para `bancopanprd@service-now.com` com assunto `[OPENAPI-ACESSO] – ConcessaoDeAcesso` anexando: Termo de Aceite assinado, Formulário de Cadastro preenchido, aprovação do gerente comercial PAN.
+  - Após liberação, preencher variáveis no `.env`:
+    - `PAN_BASE_URL`, `PAN_API_KEY`, `PAN_BASIC_CREDENTIALS` (formato `APIKEY:SECRETKEY`), `PAN_USERNAME`, `PAN_PASSWORD`, `PAN_LOJA_ID`.
+  - Habilitar integração real (desligar `PAN_MOCK` quando aplicável).
+- **Backend (integração PAN):**
+  - Implementar/ativar cliente com obtenção/renovação de token e `pre_analise` (respeitando headers e rate limit).
+  - Endpoints internos: `POST /financiamento/pre-analise` e `POST /financiamento/simulacao` retornando payload normalizado.
+  - Logs estruturados (sem PII), retries leves e masking de CPF em logs.
+- **Chatbot/MCP:**
+  - Construir diálogo base: consentimento LGPD, coleta de CPF, coleta de categoria (default configurável), chamada `pre_analise`, resposta amigável, fallback para atendente.
+  - Com PAN em produção, alternar provider LLM conforme necessário (mantendo provider local para dev).
+- **UI Financiamento:**
+  - POC com formulário (CPF + categoria) chamando o endpoint interno (mock/real) e exibindo o resumo.
+
+### Comandos úteis (diagnóstico rápido)
+- API health: `GET /health/live`
+- Diagnóstico LLM: `GET /llm/ping`
+- Geração: `POST /llm/generate`
+- Chat: `POST /llm/chat`
+
+---
+
 Este documento serve como guia referência do POC. Ajustes serão versionados neste arquivo conforme avançarmos.

@@ -63,6 +63,9 @@ class Settings(BaseSettings):
     # Modo mock para desenvolvimento/POC sem credenciais reais
     PAN_MOCK: bool = False
 
+    # LLM local (Ollama)
+    OLLAMA_BASE_URL: str = "http://localhost:11434"
+
     # Auth (login do sistema)
     AUTH_JWT_SECRET: str = "changeme"
     AUTH_JWT_EXPIRE_MINUTES: int = 60
